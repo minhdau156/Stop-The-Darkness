@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài 3: Lưới ô (grid) và bắt click chuột</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Pygame · Bài 3 trên hành trình làm game xây dựng</span>Lưới ô (grid) và bắt click chuột</h1>
+
+<p>
+Từ bài này, các bài học sẽ đi thẳng vào game bạn đang làm: một game xây dựng trên lưới ô, quản lý
+tài nguyên, có HUD đi kèm — lấy cảm hứng từ thể loại game xây dựng/quản lý tài nguyên trên lưới,
+nhưng là <strong>phiên bản gốc, đơn giản hoá, do bạn tự thiết kế</strong> (một loại tài nguyên,
+vài loại công trình, một luật mở khoá, một điều kiện thắng — đúng như bạn đã chọn).
+</p>
+
+<p>
+Việc đầu tiên mọi game kiểu này cần: một <strong>lưới ô</strong> (grid) mà người chơi bấm vào
+từng ô để xây dựng. Bài này dạy đúng hai kỹ năng lõi đó — vẽ lưới, và biết chính xác ô nào vừa
+bị bấm.
+</p>
+
+<h2>Mô hình tư duy: tách "dữ liệu" khỏi "hình vẽ"</h2>
+
+<p>
+Đây là khái niệm quan trọng nhất của bài — quan trọng hơn cả cú pháp. Lưới ô trong game của bạn
+thực chất gồm <strong>hai thứ tách biệt</strong>:
+</p>
+
+<ol>
+  <li><strong>Dữ liệu (data)</strong> — một cấu trúc Python thuần (danh sách lồng danh sách) ghi nhớ ô nào đang có gì. Không liên quan gì tới Pygame cả — đây chỉ là list Python bình thường.</li>
+  <li><strong>Hình vẽ (rendering)</strong> — mỗi frame, bạn <em>đọc</em> dữ liệu đó và vẽ ra màn hình tương ứng, bằng <code>pygame.draw.rect</code> mà bạn đã học ở Bài 1.</li>
+</ol>
+
+<div class="callout">
+  <span class="label">Vì sao phải tách ra như vậy</span>
+  Nếu bạn chỉ nghĩ "lưới ô" là 64 hình chữ nhật vẽ sẵn trên màn hình, bạn sẽ bị kẹt ngay khi cần
+  trả lời câu hỏi "ô này đang xây gì?" — vì Pygame không hề nhớ chuyện đó giúp bạn (nhắc lại từ
+  Bài 1: Pygame không tự nhớ gì cả). Khi tách dữ liệu ra thành một list Python riêng, mọi câu hỏi
+  về trạng thái game ("ô (2,3) có trống không?", "đã xây bao nhiêu công trình?") đều trở thành một
+  câu lệnh Python đơn giản trên list đó, tách biệt hoàn toàn khỏi việc vẽ hình.
+</div>
+
+<h2>Bước 1 — Biểu diễn lưới ô bằng dữ liệu</h2>
+
+<pre><code>GRID_COLS = 8
+GRID_ROWS = 6
+TILE_SIZE = 80   # mỗi ô vuông 80x80 pixel
+
+# grid[row][col] = 0 nghĩa là ô trống; sẽ dùng số khác cho "đã xây" ở bài sau
+grid = [[0 for _ in range(GRID_COLS)] for _ in range(GRID_ROWS)]
+</code></pre>
+
+<p>
+<code>grid</code> bây giờ là một list 6 phần tử (6 hàng), mỗi phần tử lại là một list 8 phần tử
+(8 cột) — toàn số <code>0</code>. Đây hoàn toàn là Python thuần, chạy được cả khi không có Pygame.
+Muốn biết ô ở hàng 2, cột 3 đang chứa gì? Chỉ cần <code>grid[2][3]</code>.
+</p>
+
+<div class="callout">
+  <span class="label">Pitfall kinh điển — thứ tự row/col</span>
+  Trong lập trình lưới ô, quy ước gần như luôn là <code>grid[row][col]</code>, tức
+  <strong>hàng trước, cột sau</strong> — ngược với cách bạn hay nghĩ về toạ độ <code>(x, y)</code>
+  (x là cột/ngang, y là hàng/dọc). <code>row</code> tương ứng với <code>y</code>, <code>col</code>
+  tương ứng với <code>x</code>. Lẫn lộn chỗ này là lỗi mới học hay gặp nhất ở bài này — khi debug,
+  luôn tự hỏi: "biến này là toạ độ pixel (x,y) hay chỉ số ô (row,col)?"
+</div>
+
+<h2>Bước 2 — Vẽ lưới từ dữ liệu</h2>
+
+<pre><code>def draw_grid(screen, grid):
+    for row in range(GRID_ROWS):
+        for col in range(GRID_COLS):
+            x = col * TILE_SIZE
+            y = row * TILE_SIZE
+            rect = (x, y, TILE_SIZE, TILE_SIZE)
+
+            if grid[row][col] == 0:
+                color = (50, 70, 50)      # ô trống — xanh rêu tối
+            else:
+                color = (160, 120, 60)    # ô đã xây — nâu đất
+
+            pygame.draw.rect(screen, color, rect)
+            pygame.draw.rect(screen, (20, 20, 20), rect, width=2)  # viền ô, width=2 nghĩa là chỉ vẽ viền, không tô đặc
+</code></pre>
+
+<p>
+Để ý công thức <code>x = col * TILE_SIZE</code> và <code>y = row * TILE_SIZE</code> — đây chính
+là cách quy đổi từ "chỉ số ô" sang "toạ độ pixel thật trên màn hình". Ô <code>(row=0, col=0)</code>
+nằm ở pixel <code>(0, 0)</code>; ô <code>(row=1, col=2)</code> nằm ở pixel
+<code>(2×80, 1×80) = (160, 80)</code>.
+</p>
+
+<p>
+Tham số thứ 3 của <code>pygame.draw.rect</code> mà bạn chưa thấy ở Bài 1: <code>width=2</code>.
+Mặc định (không truyền <code>width</code>, hoặc <code>width=0</code>) sẽ tô đặc cả hình. Truyền
+<code>width=2</code> nghĩa là chỉ vẽ viền dày 2 pixel, để lại phần giữa trong suốt — dùng để vẽ
+viền phân cách giữa các ô cho dễ nhìn.
+</p>
+
+<h2>Bước 3 — Quy đổi ngược: pixel chuột &rarr; chỉ số ô</h2>
+
+<p>
+Đây là phần mới nhất của bài: biết chuột vừa bấm vào <strong>ô nào</strong>. Pygame cho bạn biết
+chuột bấm ở <strong>toạ độ pixel</strong> nào (qua sự kiện); bạn cần tự quy đổi ngược sang chỉ số
+ô, bằng đúng phép toán ngược lại với Bước 2:
+</p>
+
+<pre><code>def pixel_to_tile(pos):
+    x, y = pos
+    col = x // TILE_SIZE
+    row = y // TILE_SIZE
+    return row, col
+</code></pre>
+
+<p>
+<code>//</code> là phép chia lấy phần nguyên (floor division) của Python — đúng thứ cần ở đây, vì
+chỉ số ô luôn là số nguyên. Ví dụ click tại pixel <code>(165, 83)</code> với
+<code>TILE_SIZE = 80</code>: <code>col = 165 // 80 = 2</code>, <code>row = 83 // 80 = 1</code> —
+đúng là ô <code>(row=1, col=2)</code> ở ví dụ trên.
+</p>
+
+<h2>Ghép lại: bắt sự kiện click chuột</h2>
+
+<pre><code>import pygame
+
+pygame.init()
+screen = pygame.display.set_mode((GRID_COLS * TILE_SIZE, GRID_ROWS * TILE_SIZE))
+clock = pygame.time.Clock()
+running = True
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            row, col = pixel_to_tile(event.pos)
+            # chặn trường hợp bấm ngoài lưới (ví dụ cửa sổ rộng hơn lưới)
+            if 0 <= row < GRID_ROWS and 0 <= col < GRID_COLS:
+                grid[row][col] = 1 if grid[row][col] == 0 else 0  # bật/tắt ô
+
+    screen.fill((20, 20, 25))
+    draw_grid(screen, grid)
+    pygame.display.flip()
+    clock.tick(60)
+
+pygame.quit()
+</code></pre>
+
+<p>
+Chú ý <code>event.type == pygame.MOUSEBUTTONDOWN</code> là một sự kiện mới, cùng họ với
+<code>pygame.QUIT</code> mà bạn đã biết — nó xuất hiện trong hàng đợi <code>pygame.event.get()</code>
+đúng một lần, ngay khung hình chuột được bấm xuống. <code>event.pos</code> là tuple
+<code>(x, y)</code> toạ độ pixel của chuột tại thời điểm bấm, tính theo cửa sổ (không phải theo màn
+hình máy tính).
+</p>
+
+<div class="callout">
+  <span class="label">Vì sao phải kiểm tra <code>0 &lt;= row &lt; GRID_ROWS</code></span>
+  Nếu cửa sổ lớn hơn vùng lưới (hoặc người dùng bấm ra ngoài rìa), phép tính ở Bước 3 vẫn trả về
+  một con số — chỉ là con số đó nằm ngoài phạm vi list <code>grid</code>. Truy cập
+  <code>grid[10][3]</code> khi <code>grid</code> chỉ có 6 hàng sẽ ném lỗi
+  <code>IndexError</code>. Luôn kiểm tra biên trước khi đọc/ghi vào <code>grid</code> bằng chỉ số
+  tính được từ chuột.
+</div>
+
+<h2>Nâng cấp nhỏ: tô sáng ô đang hover chuột</h2>
+
+<p>
+Khác với click (chỉ xảy ra một lần, bắt qua <code>event</code>), việc "chuột đang ở đâu ngay bây
+giờ" cần hỏi <strong>mỗi frame</strong>, dùng <code>pygame.mouse.get_pos()</code> — hàm này không
+phải event, mà là một hàm bạn chủ động gọi bất cứ lúc nào để lấy vị trí chuột hiện tại:
+</p>
+
+<pre><code># Đặt trong phần Draw của loop, SAU khi vẽ grid, TRƯỚC khi flip
+hover_row, hover_col = pixel_to_tile(pygame.mouse.get_pos())
+if 0 <= hover_row < GRID_ROWS and 0 <= hover_col < GRID_COLS:
+    hx, hy = hover_col * TILE_SIZE, hover_row * TILE_SIZE
+    pygame.draw.rect(screen, (255, 255, 255), (hx, hy, TILE_SIZE, TILE_SIZE), width=3)
+</code></pre>
+
+<p>
+Đây chính là cùng một hàm <code>pixel_to_tile</code> bạn viết ở Bước 3, chỉ khác nguồn toạ độ:
+lần này lấy từ <code>pygame.mouse.get_pos()</code> (vị trí hiện tại) thay vì từ
+<code>event.pos</code> (vị trí lúc click). Việc tái dùng hàm này chính là lý do bạn nên viết nó
+thành một hàm riêng ngay từ đầu, thay vì viết phép tính trực tiếp ngay tại chỗ bắt event.
+</p>
+
+<h2>Thử tự tay làm</h2>
+
+<ol class="task-list">
+  <li>Viết đủ code ở trên (data, <code>draw_grid</code>, <code>pixel_to_tile</code>, vòng lặp chính). Chạy thử, bấm vào vài ô khác nhau, xác nhận đúng ô bạn bấm đổi màu, không phải ô bên cạnh.</li>
+  <li>Thêm phần tô sáng viền trắng theo ô đang hover (Nâng cấp nhỏ ở trên). Di chuyển chuột quanh lưới, xác nhận viền trắng đi theo đúng ô chuột đang trỏ vào.</li>
+  <li>Dùng Bài 2 (vẽ chữ) để hiện số ô đã "xây" (đếm số ô bằng 1 trong <code>grid</code>) ở góc màn hình — đây chính là mảnh ghép đầu tiên nối Bài 2 và Bài 3 lại với nhau, sẽ dùng trực tiếp cho HUD thật ở bài sau.</li>
+  <li><strong>Thử nghiệm có chủ đích:</strong> tạm thời xoá điều kiện kiểm tra biên (<code>0 &lt;= row &lt; GRID_ROWS...</code>), rồi bấm chuột ra ngoài vùng lưới (nếu cửa sổ bạn có khoảng trống). Quan sát lỗi <code>IndexError</code> hiện ra, đọc kỹ dòng traceback, rồi thêm lại điều kiện kiểm tra biên.</li>
+</ol>
+
+<h2>Kiểm tra lại hiểu biết</h2>
+
+<div class="quiz" data-correct="1">
+  <p class="q-prompt">Với <code>TILE_SIZE = 80</code>, người chơi click chuột tại pixel <code>(250, 95)</code>. Ô nào (row, col) nhận được click này?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Thử lại: col = 250 // 80, row = 95 // 80 — chú ý x đi với col, y đi với row.">row=3, col=1</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — col = 250 // 80 = 3, row = 95 // 80 = 1.">row=1, col=3</button></li>
+    <li><button class="q-opt" data-wrong-msg="250 và 95 là toạ độ pixel, không phải trực tiếp là chỉ số ô — cần chia cho TILE_SIZE trước.">row=250, col=95</button></li>
+    <li><button class="q-opt" data-wrong-msg="Phép chia lấy phần nguyên dùng toán tử //, không phải phép chia có số dư thông thường.">row=15, col=10</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="2">
+  <p class="q-prompt">Vì sao cần kiểm tra <code>0 &lt;= row &lt; GRID_ROWS</code> trước khi dùng <code>grid[row][col]</code>?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Pygame không bắt buộc kiểm tra kiểu này để vẽ hình.">Vì pygame.draw.rect yêu cầu bắt buộc như vậy</button></li>
+    <li><button class="q-opt" data-wrong-msg="Tốc độ khung hình không liên quan tới việc kiểm tra biên của lưới.">Để tăng tốc độ khung hình (FPS)</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — click ngoài vùng lưới sẽ cho ra chỉ số nằm ngoài phạm vi list, gây IndexError.">Tránh IndexError khi chỉ số tính được nằm ngoài list</button></li>
+    <li><button class="q-opt" data-wrong-msg="Thao tác này không liên quan gì tới font chữ.">Để font chữ hiển thị đúng kích thước</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="0">
+  <p class="q-prompt">Khác biệt chính giữa bắt sự kiện <code>pygame.MOUSEBUTTONDOWN</code> và gọi <code>pygame.mouse.get_pos()</code> là gì?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-right-msg="Chính xác — MOUSEBUTTONDOWN là một event chỉ xuất hiện đúng lúc bấm xuống; get_pos() là hàm bạn gọi để hỏi vị trí hiện tại, bất kỳ lúc nào.">Một cái là sự kiện xảy ra một lần lúc bấm; một cái là hàm hỏi vị trí hiện tại</button></li>
+    <li><button class="q-opt" data-wrong-msg="Cả hai đều có thể dùng trong game loop bình thường, không phải lý do khác biệt.">Một cái chỉ dùng được trong hàm main, một cái thì không</button></li>
+    <li><button class="q-opt" data-wrong-msg="Toạ độ trả về đều có thể âm nếu chuột ra ngoài cửa sổ theo một số trường hợp — đây không phải khác biệt chính được dạy ở bài này.">Một cái trả về toạ độ âm, một cái luôn dương</button></li>
+    <li><button class="q-opt" data-wrong-msg="Cả hai đều liên quan tới chuột, không phải bàn phím.">Một cái dùng cho chuột, một cái dùng cho bàn phím</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<p class="ask-your-teacher">
+  Nếu ô bị đổi màu sai vị trí so với chỗ bạn bấm, gần như chắc chắn là lỗi lẫn <code>row</code>/<code>col</code>
+  hoặc <code>x</code>/<code>y</code> ở đâu đó — cứ dán code lên hỏi mình, đừng đoán mò quá lâu.
+</p>
+
+<div class="sources">
+  <strong>Nguồn tham khảo chính cho bài này:</strong>
+  <ul>
+    <li><a href="https://www.pygame.org/docs/ref/event.html" target="_blank" rel="noopener">pygame.event — tài liệu API chính thức</a>, xem phần <code>MOUSEBUTTONDOWN</code>/<code>MOUSEBUTTONUP</code>.</li>
+    <li><a href="https://www.pygame.org/docs/ref/mouse.html" target="_blank" rel="noopener">pygame.mouse — tài liệu API chính thức</a>, xem <code>get_pos()</code>.</li>
+    <li><a href="https://www.pygame.org/docs/ref/draw.html" target="_blank" rel="noopener">pygame.draw.rect</a> — tham số <code>width</code> để vẽ viền thay vì tô đặc.</li>
+  </ul>
+  Xem thêm: <a href="../reference/pygame-grid-mouse-cheatsheet.html">Grid &amp; Mouse Picking — Cheat Sheet</a>.
+</div>
+
+<div class="nav-links">
+  <span>&larr; <a href="0002-text-and-fonts.html">Bài 2: Vẽ chữ với pygame.font</a></span>
+  <span><a href="0004-resource-and-hud.html">Bài 4: Tài nguyên (resource) + HUD &rarr;</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

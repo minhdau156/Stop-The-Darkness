@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài 7: Điều kiện thắng + màn hình bắt đầu/thắng</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Pygame · Bài 7 — hoàn thiện game</span>Điều kiện thắng + màn hình bắt đầu/thắng</h1>
+
+<p>
+Đây là bài cuối cùng trong hành trình đã lên kế hoạch: ghép game của bạn thành một trải nghiệm
+hoàn chỉnh — có <strong>màn hình bắt đầu</strong>, <strong>chơi</strong>, và <strong>màn hình
+thắng</strong> — thay vì mở lên là vào thẳng lưới ô. Sau bài này, bạn có đủ mọi mảnh ghép cho
+project nộp trường: game loop, HUD, tài nguyên, menu xây dựng, luật mở khoá, và giờ là một trò
+chơi có điểm bắt đầu/kết thúc rõ ràng.
+</p>
+
+<h2>Mô hình tư duy: game state machine</h2>
+
+<p>
+Toàn bộ ý tưởng chỉ gói gọn trong một biến: <code>game_state</code>, một chuỗi string cho biết
+game đang ở "màn hình" nào. Mỗi frame, bạn hỏi "đang ở state nào?" rồi vẽ/xử lý sự kiện tương ứng
+<strong>chỉ cho state đó</strong>. Đây gọi là <strong>state machine</strong> (máy trạng thái) —
+nghe to tát, nhưng với 3 state đơn giản như ở đây, nó chỉ là một chuỗi <code>if/elif</code>.
+</p>
+
+<pre><code>game_state = "START"   # "START" -> "PLAYING" -> "WON"
+</code></pre>
+
+<h2>Bước 1 — Định nghĩa điều kiện thắng</h2>
+
+<pre><code>WIN_TARGET = 10   # thắng khi xây đủ 10 công trình bất kỳ loại nào
+
+def check_win():
+    built_count = sum(1 for row in grid for cell in row if cell != 0)
+    return built_count >= WIN_TARGET
+</code></pre>
+
+<p>
+<code>sum(1 for row in grid for cell in row if cell != 0)</code> là cách viết gọn của: duyệt từng
+<code>row</code>, trong mỗi <code>row</code> duyệt từng <code>cell</code>, đếm 1 cho mỗi
+<code>cell</code> khác 0. Kết quả giống hệt cách đếm <code>built_count</code> bạn đã viết ở Bài 4,
+chỉ viết lại dưới dạng một hàm riêng để dùng lại được ở nhiều chỗ.
+</p>
+
+<h2>Bước 2 — Nút bấm dùng lại được (tái sử dụng pattern Bài 5)</h2>
+
+<p>
+Nút "Bắt đầu" và nút "Chơi lại" dùng đúng pattern <code>Rect</code> + <code>collidepoint</code> +
+canh chữ giữa đã học ở Bài 5 — viết thành một hàm dùng chung, thay vì chép lại code cho từng nút:
+</p>
+
+<pre><code>def draw_button(screen, font, rect, label, base_color=(70, 70, 90)):
+    pygame.draw.rect(screen, base_color, rect)
+    pygame.draw.rect(screen, (255, 255, 255), rect, width=2)
+    text = font.render(label, True, (255, 255, 255))
+    text_rect = text.get_rect(center=rect.center)
+    screen.blit(text, text_rect)
+
+start_button = pygame.Rect(300, 250, 200, 60)
+restart_button = pygame.Rect(300, 350, 200, 60)
+</code></pre>
+
+<h2>Bước 3 — Vẽ theo từng state</h2>
+
+<pre><code>screen.fill((20, 20, 25))
+
+if game_state == "START":
+    title = font.render("Tên Game Của Bạn", True, (255, 255, 255))
+    screen.blit(title, title.get_rect(center=(400, 150)))
+    draw_button(screen, font, start_button, "Bắt đầu")
+
+elif game_state == "PLAYING":
+    draw_grid(screen, grid)
+    draw_menu(screen, font)
+    # ... vẽ HUD, hover hint, thông báo tạm thời — y hệt Bài 4-6
+
+elif game_state == "WON":
+    msg = font.render("Bạn đã thắng!", True, (120, 220, 120))
+    screen.blit(msg, msg.get_rect(center=(400, 250)))
+    draw_button(screen, font, restart_button, "Chơi lại")
+
+pygame.display.flip()
+</code></pre>
+
+<div class="callout">
+  <span class="label">Vì sao đây là "máy trạng thái", không phải chỉ là if/else thường</span>
+  Điểm khác biệt không nằm ở cú pháp (vẫn chỉ là <code>if/elif</code>) mà ở <strong>kỷ luật</strong>:
+  mọi thứ liên quan tới một màn hình — vẽ <em>và</em> xử lý sự kiện — đều phải được "gác cổng" bởi
+  đúng một điều kiện <code>game_state == "..."</code>. Không có chuyện lưới được vẽ ở màn hình
+  START, hay nút "Bắt đầu" vẫn nhận click khi đang ở PLAYING. Thiếu kỷ luật này là nguồn bug phổ
+  biến nhất khi ghép nhiều "màn hình" vào một game.
+</div>
+
+<h2>Bước 4 — Xử lý sự kiện theo từng state</h2>
+
+<pre><code>for event in pygame.event.get():
+    if event.type == pygame.QUIT:
+        running = False
+
+    elif event.type == pygame.MOUSEBUTTONDOWN:
+        if game_state == "START" and start_button.collidepoint(event.pos):
+            game_state = "PLAYING"
+
+        elif game_state == "PLAYING":
+            # ... toàn bộ logic click menu/lưới từ Bài 4-6 nằm ở đây
+            pass
+
+        elif game_state == "WON" and restart_button.collidepoint(event.pos):
+            reset_game()
+            game_state = "PLAYING"
+</code></pre>
+
+<p>
+Để ý cấu trúc: <strong>kiểm tra <code>game_state</code> trước</strong>, rồi mới kiểm tra
+<code>collidepoint</code> bên trong. Nếu làm ngược lại (kiểm tra <code>collidepoint</code> trước),
+một click vô tình rơi đúng toạ độ của <code>start_button</code> trong lúc đang
+<code>PLAYING</code> cũng sẽ bị xử lý như thể bấm nút Bắt đầu — dù nút đó còn chẳng được vẽ ra lúc
+này.
+</p>
+
+<h2>Bước 5 — Kiểm tra thắng mỗi frame, và hàm reset</h2>
+
+<pre><code># Trong phần Update, chỉ khi đang PLAYING:
+if game_state == "PLAYING" and check_win():
+    game_state = "WON"
+
+def reset_game():
+    global grid, resource, frame_counter, message, message_timer
+    grid = [[0 for _ in range(GRID_COLS)] for _ in range(GRID_ROWS)]
+    resource = 20
+    frame_counter = 0
+    message, message_timer = "", 0
+</code></pre>
+
+<div class="callout">
+  <span class="label">Vì sao cần <code>reset_game()</code> thay vì chỉ đổi <code>game_state</code></span>
+  Nếu bạn chỉ đổi <code>game_state</code> về <code>"PLAYING"</code> mà không reset
+  <code>grid</code>/<code>resource</code>, người chơi bấm "Chơi lại" sẽ thấy lưới cũ vẫn còn
+  nguyên, tài nguyên vẫn còn như lúc thắng — tức là "chơi lại" nhưng không hề mới. Mọi biến state
+  bạn đã thêm qua các Bài 3-6 (<code>grid</code>, <code>resource</code>, <code>frame_counter</code>,
+  <code>message</code>...) đều phải được liệt kê lại trong <code>reset_game</code>.
+</div>
+
+<h2>Những lỗi thường gặp</h2>
+
+<div class="callout">
+  <span class="label">Pitfall #1 — quên "gác cổng" theo state</span>
+  Để logic xây dựng (Bài 4-6) chạy mà không kiểm tra <code>game_state == "PLAYING"</code> trước —
+  kết quả: người chơi có thể click xây công trình ngay cả khi đang ở màn hình START hoặc WON, nơi
+  lưới thậm chí không được vẽ ra.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #2 — quên dùng <code>global</code> trong <code>reset_game</code></span>
+  Nếu <code>grid</code>, <code>resource</code>... là biến toàn cục (khai báo ở ngoài mọi hàm, như
+  trong các bài trước) và bạn gán lại chúng <strong>bên trong</strong> một hàm mà không khai báo
+  <code>global</code>, Python sẽ tạo ra các biến <strong>cục bộ mới</strong> trùng tên, chỉ tồn tại
+  trong hàm đó — biến toàn cục thật sự không hề đổi, và bug sẽ rất khó hiểu ("tôi đã reset mà sao
+  vẫn như cũ?").
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #3 — kiểm tra thắng quá sớm hoặc quá nhiều lần</span>
+  Gọi <code>check_win()</code> ngay cả khi đang ở state <code>"WON"</code> hoặc
+  <code>"START"</code> là lãng phí (và có thể gây lỗi logic nếu <code>grid</code> chưa được khởi
+  tạo). Luôn bọc điều kiện <code>if game_state == "PLAYING" and check_win():</code> như Bước 5.
+</div>
+
+<h2>Thử tự tay làm — ráp toàn bộ game</h2>
+
+<ol class="task-list">
+  <li>Thêm <code>game_state</code>, các nút Bắt đầu/Chơi lại, và bọc toàn bộ logic vẽ + sự kiện của Bài 3-6 vào đúng nhánh <code>"PLAYING"</code>.</li>
+  <li>Thêm <code>check_win()</code> và chuyển <code>game_state</code> sang <code>"WON"</code> khi đủ điều kiện.</li>
+  <li>Viết <code>reset_game()</code> đầy đủ, gọi khi bấm "Chơi lại". Chơi thử trọn một lượt: START &rarr; xây đủ 10 công trình &rarr; WON &rarr; Chơi lại &rarr; xác nhận lưới/tài nguyên về lại trạng thái ban đầu.</li>
+  <li><strong>Nâng cao (tự chọn chủ đề cho project):</strong> đổi tên game, tên 2 loại công trình, màu sắc, và <code>WIN_TARGET</code> theo đúng ý tưởng/chủ đề bạn muốn nộp — đây là lúc "đóng gói" toàn bộ cơ chế đã học thành game của riêng bạn.</li>
+</ol>
+
+<h2>Kiểm tra lại hiểu biết</h2>
+
+<div class="quiz" data-correct="0">
+  <p class="q-prompt">Vì sao logic xây dựng cần được bọc trong <code>if game_state == "PLAYING":</code> ở cả phần vẽ lẫn phần xử lý sự kiện?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-right-msg="Chính xác — thiếu điều kiện này, người chơi có thể tương tác với lưới dù đang ở màn hình START/WON, nơi nó còn chưa được vẽ hợp lý.">Để tránh xây dựng/tương tác lưới xảy ra ở màn hình START hoặc WON</button></li>
+    <li><button class="q-opt" data-wrong-msg="Tốc độ khung hình do clock.tick() quyết định, không liên quan tới game_state.">Để tăng tốc độ khung hình khi đang PLAYING</button></li>
+    <li><button class="q-opt" data-wrong-msg="Số loại công trình do BUILDING_TYPES quyết định, không liên quan tới game_state.">Để giới hạn số loại công trình còn lại</button></li>
+    <li><button class="q-opt" data-wrong-msg="Pygame không yêu cầu bắt buộc theo cách này — đây là kỷ luật tự đặt ra khi thiết kế state machine.">Vì Pygame bắt buộc cú pháp này khi dùng nhiều màn hình</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="2">
+  <p class="q-prompt">Trong <code>reset_game()</code>, vì sao cần khai báo <code>global grid, resource, ...</code> ở đầu hàm?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Đây không phải yêu cầu bắt buộc của Pygame, mà là quy tắc scope biến của Python nói chung.">Vì Pygame yêu cầu khai báo global cho mọi hàm</button></li>
+    <li><button class="q-opt" data-wrong-msg="Tốc độ gán biến không khác biệt đáng kể giữa biến cục bộ và toàn cục ở quy mô này.">Để hàm chạy nhanh hơn</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — thiếu global, Python sẽ tạo biến cục bộ mới trùng tên, không hề đổi biến toàn cục thật sự dùng trong game loop.">Để gán lại đúng biến toàn cục, thay vì tạo biến cục bộ mới trùng tên</button></li>
+    <li><button class="q-opt" data-wrong-msg="Kiểu dữ liệu của grid (list lồng list) không đổi dù có hay không có global.">Để đổi kiểu dữ liệu của grid từ list sang dict</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<p class="ask-your-teacher">
+  Nếu ráp xong mà "Chơi lại" không thực sự reset được gì, gần như chắc chắn là Pitfall #2
+  (thiếu <code>global</code>) — nhưng cứ hỏi mình kèm code <code>reset_game()</code> của bạn nếu
+  vẫn không ra.
+</p>
+
+<div class="sources">
+  <strong>Nguồn tham khảo chính cho bài này:</strong>
+  <ul>
+    <li><a href="https://www.pygame.org/docs/ref/rect.html" target="_blank" rel="noopener">pygame.Rect</a> (tái dùng <code>collidepoint</code>/<code>center</code> từ Bài 5).</li>
+    <li><a href="https://docs.python.org/3/reference/simple_stmts.html#the-global-statement" target="_blank" rel="noopener">Python docs — the global statement</a>, để hiểu rõ Pitfall #2 từ gốc ngôn ngữ Python, không riêng Pygame.</li>
+  </ul>
+  Xem thêm: <a href="../reference/game-state-patterns-cheatsheet.html">Game State Patterns — Cheat Sheet</a>.
+</div>
+
+<div class="callout">
+  <span class="label">Hoàn thành hành trình đã lên kế hoạch 🎯</span>
+  Tới đây, bạn đã có đủ mọi thành phần để nộp project: game loop, HUD, tài nguyên, menu xây dựng,
+  một luật mở khoá, và màn hình bắt đầu/thắng. Nếu còn thời gian sau khi hoàn thành bản lõi, các
+  hướng mở rộng tự nhiên (không bắt buộc): thêm hiệu ứng âm thanh (<code>pygame.mixer</code>),
+  dùng hình ảnh thật thay vì hình chữ nhật màu (<code>pygame.image.load</code>), hoặc thêm loại
+  tài nguyên thứ hai. Những phần này nằm ngoài phạm vi đã thống nhất ban đầu — chỉ làm nếu bạn chủ
+  động muốn, đừng để chúng trì hoãn bản nộp đúng hạn.
+</div>
+
+<div class="nav-links">
+  <span>&larr; <a href="0006-unlock-rule-adjacency.html">Bài 6: Luật mở khoá theo ô lân cận</a></span>
+  <span><a href="0008-drawing-icons-with-primitives.html">Bài 8 (tuỳ chọn): Vẽ icon Cây &amp; Đá &rarr;</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

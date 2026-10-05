@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài 6: Luật mở khoá theo ô lân cận</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Pygame · Bài 6 trên hành trình làm game xây dựng</span>Luật mở khoá theo ô lân cận</h1>
+
+<p>
+Đây chính là cơ chế đặc trưng nhất của thể loại game bạn đang làm theo: <strong>một số công
+trình chỉ xây được cạnh một công trình khác đã có sẵn</strong>. Theo đúng phạm vi đơn giản hoá bạn
+đã chọn, bài này chỉ làm <strong>đúng một luật</strong> — không phải cả một mạng lưới phụ thuộc
+phức tạp.
+</p>
+
+<h2>Luật của game bạn (ví dụ cụ thể)</h2>
+
+<div class="callout">
+  <span class="label">Luật duy nhất cho phiên bản đơn giản hoá</span>
+  <strong>Tháp Canh</strong> (loại công trình thứ 2 từ Bài 5) chỉ xây được trên một ô nếu ô đó có
+  <strong>ít nhất một ô lân cận</strong> (trên/dưới/trái/phải — không tính chéo) đã có
+  <strong>Trạm Gỗ</strong>. <strong>Trạm Gỗ</strong> thì xây tự do, không cần điều kiện gì.
+</div>
+
+<p>
+Bạn hoàn toàn có thể đổi tên/luật này cho đúng chủ đề game của riêng mình — điều quan trọng là
+<em>cơ chế</em>: kiểm tra ô lân cận trước khi cho phép xây.
+</p>
+
+<h2>Bước 1 — Viết hàm lấy danh sách ô lân cận</h2>
+
+<pre><code>def get_neighbors(row, col):
+    candidates = [
+        (row - 1, col),  # trên
+        (row + 1, col),  # dưới
+        (row, col - 1),  # trái
+        (row, col + 1),  # phải
+    ]
+    return [(r, c) for r, c in candidates if is_valid(r, c)]
+</code></pre>
+
+<p>
+Đây là đúng 4 hướng (lên/xuống/trái/phải) — gọi là <strong>4-lân cận</strong>, không tính 4 ô chéo
+góc. Hàm <code>is_valid</code> chính là hàm kiểm tra biên bạn đã viết ở Bài 3 — được tái sử dụng
+nguyên vẹn ở đây, vì bài toán giống hệt nhau: "toạ độ (row, col) này có nằm trong lưới không?"
+</p>
+
+<div class="callout">
+  <span class="label">Vì sao lọc bằng <code>is_valid</code> ngay trong hàm này</span>
+  Một ô ở góc hoặc ở cạnh lưới sẽ có một vài "ứng viên lân cận" nằm ngoài lưới (ví dụ ô
+  <code>(0, 0)</code> không có ô "trên" hay ô "trái" thật sự). Nếu không lọc, bước kiểm tra tiếp
+  theo (Bước 2) sẽ tự dò vào <code>grid[-1][0]</code> — về mặt kỹ thuật Python <em>không</em> báo
+  lỗi ở đây (vì chỉ số âm trong Python hợp lệ, nó lấy phần tử từ cuối list!), nhưng kết quả sẽ sai
+  hoàn toàn so với ý bạn muốn — một lỗi âm thầm, khó phát hiện hơn cả <code>IndexError</code>.
+</div>
+
+<h2>Bước 2 — Kiểm tra điều kiện mở khoá</h2>
+
+<pre><code>TOWER_TYPE = 2   # chỉ số (1-based, khớp với cách lưu trong grid ở Bài 5) của "Tháp Canh"
+STATION_TYPE = 1 # chỉ số của "Trạm Gỗ"
+
+def can_place(row, col, type_index):
+    if type_index != TOWER_TYPE:
+        return True   # các loại khác (ví dụ Trạm Gỗ) không có điều kiện gì
+
+    for r, c in get_neighbors(row, col):
+        if grid[r][c] == STATION_TYPE:
+            return True
+    return False
+</code></pre>
+
+<p>
+Hàm này trả lời đúng một câu hỏi: "loại công trình này, tại ô này, có <strong>được phép</strong>
+xây không?" — hoàn toàn tách biệt khỏi việc có đủ tài nguyên hay ô có đang trống không (những điều
+kiện đó đã có ở Bài 4–5). Tách riêng như vậy giúp mỗi hàm chỉ lo đúng một việc, dễ debug hơn khi
+có gì sai.
+</p>
+
+<h2>Bước 3 — Ghép vào luồng xây dựng</h2>
+
+<pre><code>if not clicked_menu:
+    row, col = pixel_to_tile(event.pos)
+    if is_valid(row, col):
+        btype = BUILDING_TYPES[selected_type]
+        if grid[row][col] != 0:
+            message, message_timer = "Ô này đã được xây rồi", 90
+        elif resource < btype["cost"]:
+            message, message_timer = "Không đủ tài nguyên", 90
+        elif not can_place(row, col, selected_type + 1):
+            message, message_timer = "Cần xây cạnh Trạm Gỗ trước", 90
+        else:
+            grid[row][col] = selected_type + 1
+            resource -= btype["cost"]
+</code></pre>
+
+<p>
+Để ý đây vẫn là đúng cấu trúc <code>if/elif/.../else</code> từ Bài 4 — bạn chỉ thêm
+<strong>một điều kiện nữa</strong> vào chuỗi kiểm tra "lý do không xây được", theo đúng thứ tự ưu
+tiên bạn muốn báo cho người chơi biết.
+</p>
+
+<h2>Nâng cấp UI: tô màu ô hover theo được phép/không được phép</h2>
+
+<p>
+Đây là chỗ bài học quay lại đúng mục tiêu ban đầu của cả workspace — UI phản hồi rõ ràng cho người
+chơi. Tái sử dụng phần hover từ Bài 3, giờ tô màu theo kết quả <code>can_place</code>:
+</p>
+
+<pre><code>hover_row, hover_col = pixel_to_tile(pygame.mouse.get_pos())
+if is_valid(hover_row, hover_col):
+    hx, hy = hover_col * TILE_SIZE, hover_row * TILE_SIZE
+    btype = BUILDING_TYPES[selected_type]
+    if grid[hover_row][hover_col] == 0 and can_place(hover_row, hover_col, selected_type + 1):
+        hint_color = (120, 220, 120)   # xanh lá — xây được
+    else:
+        hint_color = (220, 100, 100)   # đỏ — không xây được
+    pygame.draw.rect(screen, hint_color, (hx, hy, TILE_SIZE, TILE_SIZE), width=3)
+</code></pre>
+
+<p>
+Với thay đổi nhỏ này, người chơi biết ngay ô nào xây được <strong>trước khi click</strong>, thay
+vì phải thử rồi mới thấy thông báo lỗi — một nâng cấp UI nhỏ nhưng ảnh hưởng lớn tới cảm giác chơi
+("UX" — trải nghiệm người dùng).
+</p>
+
+<h2>Những lỗi thường gặp</h2>
+
+<div class="callout">
+  <span class="label">Pitfall #1 — tính cả 4 ô chéo</span>
+  Thêm nhầm <code>(row-1, col-1)</code>, <code>(row-1, col+1)</code>... vào
+  <code>get_neighbors</code> sẽ biến luật "4-lân cận" thành "8-lân cận" (bao gồm chéo góc) — không
+  sai về mặt kỹ thuật, nhưng khác với luật bạn định thiết kế. Luôn xác định rõ: lân cận của bạn là
+  4 hướng hay 8 hướng, và nhất quán xuyên suốt game.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #2 — chỉ số âm "lọt lưới" của Python</span>
+  Như đã nhắc ở Bước 1: <code>grid[-1][0]</code> không báo lỗi, nó âm thầm trả về
+  <strong>hàng cuối cùng</strong> của <code>grid</code> — hoàn toàn không phải điều bạn muốn khi
+  đang kiểm tra "ô phía trên ô (0, 0)". Đây là lý do <code>is_valid</code> (chặn số âm bằng
+  <code>0 &lt;= row</code>) bắt buộc phải có, dù Python sẽ không tự báo lỗi nhắc bạn.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #3 — quên luật áp dụng cho ô đang XÂY, không phải ô lân cận</span>
+  Luật là "Tháp Canh cần <strong>ô nó đang xây</strong> có lân cận là Trạm Gỗ" — không phải "Trạm
+  Gỗ cần lân cận là Tháp Canh". Nhầm chiều điều kiện này là lỗi logic dễ xảy ra khi mới viết —
+  luôn đọc lại luật bằng lời trước khi viết code kiểm tra nó.
+</div>
+
+<h2>Thử tự tay làm</h2>
+
+<ol class="task-list">
+  <li>Viết <code>get_neighbors</code> và <code>can_place</code>, ghép vào luồng xây dựng (Bước 3).</li>
+  <li>Xác nhận: xây Tháp Canh ở ô không cạnh Trạm Gỗ nào bị chặn, kèm thông báo đúng; xây cạnh Trạm Gỗ thì thành công.</li>
+  <li>Thêm phần tô màu hover xanh/đỏ (nâng cấp UI ở trên). Di chuột quanh lưới, xác nhận màu đổi đúng theo luật, kể cả khi bạn đổi loại công trình đang chọn ở menu.</li>
+  <li><strong>Thử nghiệm có chủ đích:</strong> tạm thời đổi <code>get_neighbors</code> để bao gồm cả 4 ô chéo, quan sát luật trở nên "dễ" hơn ra sao, rồi đổi lại 4-lân cận như thiết kế ban đầu.</li>
+</ol>
+
+<h2>Kiểm tra lại hiểu biết</h2>
+
+<div class="quiz" data-correct="2">
+  <p class="q-prompt">Vì sao <code>grid[-1][0]</code> KHÔNG tự báo lỗi trong Python, dù về mặt logic game đó là một chỉ số không hợp lệ?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Python không giới hạn độ dài list theo cách gây lỗi im lặng kiểu này.">Vì list trong Python luôn có độ dài vô hạn</button></li>
+    <li><button class="q-opt" data-wrong-msg="is_valid() là hàm bạn tự viết để chặn trường hợp này — không phải Python tự báo lỗi.">Vì Pygame tự động chặn chỉ số âm</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — Python coi chỉ số âm là 'đếm từ cuối list', nên nó trả về một phần tử thật, không ném lỗi.">Python hiểu chỉ số âm là đếm ngược từ cuối list</button></li>
+    <li><button class="q-opt" data-wrong-msg="Đây không liên quan tới kiểu dữ liệu row/col.">Vì row và col luôn là kiểu float trong ví dụ này</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="1">
+  <p class="q-prompt">Theo luật ở bài này, điều kiện nào khiến <code>can_place(row, col, TOWER_TYPE)</code> trả về <code>True</code>?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Luật áp dụng cho Tháp Canh, không phải Trạm Gỗ.">Ô đó có ít nhất một ô lân cận là Tháp Canh</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — đây đúng là luật đã định nghĩa: cần ít nhất một trong 4 ô lân cận là Trạm Gỗ.">Ít nhất một trong 4 ô lân cận (không tính chéo) là Trạm Gỗ</button></li>
+    <li><button class="q-opt" data-wrong-msg="Tài nguyên được kiểm tra ở một điều kiện riêng (Bài 4), không nằm trong can_place.">Người chơi có đủ tài nguyên để xây</button></li>
+    <li><button class="q-opt" data-wrong-msg="Trạng thái của chính ô đó do điều kiện grid[row][col] != 0 xử lý riêng, không nằm trong can_place.">Ô đó hiện đang trống, chưa xây gì</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<p class="ask-your-teacher">
+  Nếu luật mở khoá hoạt động "ngược" (chặn nhầm ô đáng lẽ xây được, hoặc cho xây ô đáng lẽ bị
+  chặn) — in thử <code>get_neighbors(row, col)</code> ra console để xem nó trả về đúng ô bạn nghĩ
+  không, rồi hỏi mình kèm kết quả đó.
+</p>
+
+<div class="sources">
+  <strong>Ghi chú về nguồn:</strong> luật "mở khoá theo ô lân cận" là một cơ chế thiết kế game phổ
+  biến trong thể loại xây dựng/chiến thuật trên lưới nói chung, không gắn với một tài liệu kỹ
+  thuật cụ thể nào — phần kỹ thuật (duyệt 4-lân cận trong list 2 chiều) là thuật toán lưới chuẩn,
+  không riêng của Pygame.
+  <br>Xem thêm: <a href="../reference/game-state-patterns-cheatsheet.html">Game State Patterns — Cheat Sheet</a>.
+</div>
+
+<div class="nav-links">
+  <span>&larr; <a href="0005-build-menu-buttons.html">Bài 5: Menu xây dựng bằng nút bấm</a></span>
+  <span><a href="0007-win-condition-and-screens.html">Bài 7: Điều kiện thắng + màn hình bắt đầu/thắng &rarr;</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

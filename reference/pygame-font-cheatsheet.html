@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pygame Font &amp; Text — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  body { max-width: 760px; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: normal; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  td code { white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Reference</span>Pygame Font &amp; Text — Cheat Sheet</h1>
+
+<p>Tra nhanh cú pháp vẽ chữ trong Pygame. Chi tiết đầy đủ + ví dụ: <a href="../lessons/0002-text-and-fonts.html">Bài 2: Vẽ chữ với pygame.font</a>.</p>
+
+<h2>Quy trình 3 bước</h2>
+<pre><code>font = pygame.font.SysFont(None, 36)              # 1. Tạo font — MỘT LẦN, ngoài loop
+text_surface = font.render("Hello", True, (255,255,255))  # 2. Render — mỗi khi text đổi
+screen.blit(text_surface, (x, y))                 # 3. Blit — mỗi frame
+</code></pre>
+
+<h2>Tạo font</h2>
+<table>
+  <tr><th>Lệnh</th><th>Khi nào dùng</th></tr>
+  <tr><td><code>pygame.font.SysFont(None, size)</code></td><td>Font mặc định, luôn có sẵn, không cần file riêng.</td></tr>
+  <tr><td><code>pygame.font.SysFont("arial", size)</code></td><td>Font cài sẵn trên máy, theo tên. Có thể không giống nhau giữa các máy.</td></tr>
+  <tr><td><code>pygame.font.Font("path/to/font.ttf", size)</code></td><td>Font tự mang theo trong project — trông giống nhau trên mọi máy. Nên dùng khi nộp bài/ship game.</td></tr>
+</table>
+
+<h2><code>font.render(text, antialias, color, background=None)</code></h2>
+<table>
+  <tr><th>Tham số</th><th>Ý nghĩa</th></tr>
+  <tr><td><code>text</code></td><td>Chuỗi cần vẽ. <strong>Chỉ một dòng</strong> — <code>\n</code> không tự xuống dòng.</td></tr>
+  <tr><td><code>antialias</code></td><td><code>True</code>/<code>False</code> — bật True để viền chữ mượt.</td></tr>
+  <tr><td><code>color</code></td><td>Tuple <code>(R, G, B)</code>, 0–255 mỗi kênh.</td></tr>
+  <tr><td><code>background</code></td><td>Tuỳ chọn — màu nền phía sau chữ. Bỏ qua = nền trong suốt.</td></tr>
+</table>
+<p>Trả về: một <code>Surface</code> mới chứa hình ảnh của chữ.</p>
+
+<h2>Canh chỉnh vị trí — <code>surface.get_rect(...)</code></h2>
+<table>
+  <tr><th>Từ khoá</th><th>Canh theo</th></tr>
+  <tr><td><code>topleft=(x,y)</code></td><td>Góc trên-trái (mặc định nếu blit bằng tuple toạ độ thẳng)</td></tr>
+  <tr><td><code>topright=(x,y)</code></td><td>Góc trên-phải — hay dùng cho điểm số</td></tr>
+  <tr><td><code>midtop=(x,y)</code></td><td>Giữa theo chiều ngang, dính mép trên — hay dùng cho tiêu đề</td></tr>
+  <tr><td><code>center=(x,y)</code></td><td>Chính giữa cả ngang lẫn dọc — hay dùng cho "GAME OVER"</td></tr>
+  <tr><td><code>bottomleft=(x,y)</code></td><td>Góc dưới-trái</td></tr>
+</table>
+<pre><code>rect = text_surface.get_rect(center=(400, 300))
+screen.blit(text_surface, rect)
+</code></pre>
+
+<h2>Lỗi thường gặp</h2>
+<table>
+  <tr><th>Triệu chứng</th><th>Nguyên nhân</th></tr>
+  <tr><td>Nhiều dòng dính liền nhau</td><td><code>\n</code> không được <code>render()</code> hiểu — phải tự <code>.split("\n")</code> và blit từng dòng.</td></tr>
+  <tr><td>Game chạy chậm khi có nhiều chữ</td><td><code>SysFont()</code>/<code>Font()</code> bị gọi lại mỗi frame thay vì một lần ngoài loop.</td></tr>
+  <tr><td><code>font not initialized</code></td><td>Thiếu <code>pygame.init()</code> ở đầu file.</td></tr>
+</table>
+
+<div class="sources">
+  Nguồn: <a href="https://www.pygame.org/docs/ref/font.html" target="_blank" rel="noopener">pygame.font — official docs</a> ·
+  <a href="https://pygame.readthedocs.io/en/latest/4_text/text.html" target="_blank" rel="noopener">Work with text — Pygame tutorial</a>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game State Patterns — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  body { max-width: 760px; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: normal; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+</style>
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Reference</span>Game State Patterns — Cheat Sheet</h1>
+
+<p>Tra nhanh 4 pattern dùng xuyên suốt game xây dựng của bạn. Chi tiết từng pattern nằm ở
+<a href="../lessons/0004-resource-and-hud.html">Bài 4</a>,
+<a href="../lessons/0005-build-menu-buttons.html">Bài 5</a>,
+<a href="../lessons/0006-unlock-rule-adjacency.html">Bài 6</a>,
+<a href="../lessons/0007-win-condition-and-screens.html">Bài 7</a>.</p>
+
+<h2>1. Thông báo tạm thời (temporary message) — Bài 4</h2>
+<pre><code>message, message_timer = "", 0
+
+# Update, mỗi frame:
+if message_timer > 0:
+    message_timer -= 1
+
+# Gây ra thông báo:
+message, message_timer = "Không đủ tài nguyên", 90   # ~1.5s ở 60 FPS
+
+# Draw:
+if message_timer > 0:
+    screen.blit(font.render(message, True, (255,200,80)), (20, 60))</code></pre>
+
+<h2>2. Thu nhập theo nhịp (income tick) — Bài 4</h2>
+<pre><code>frame_counter = 0
+TICK_FRAMES = 60   # ~1 giây ở 60 FPS
+
+frame_counter += 1
+if frame_counter >= TICK_FRAMES:
+    frame_counter = 0
+    resource += INCOME_PER_TICK</code></pre>
+
+<h2>3. Nút bấm (button) — Bài 5 &amp; 7</h2>
+<pre><code>btn = pygame.Rect(x, y, w, h)
+
+# Vẽ:
+pygame.draw.rect(screen, color, btn)
+text_rect = label_surface.get_rect(center=btn.center)
+screen.blit(label_surface, text_rect)
+
+# Bắt click:
+if event.type == pygame.MOUSEBUTTONDOWN and btn.collidepoint(event.pos):
+    ...</code></pre>
+
+<h2>4. Thứ tự kiểm tra "lý do không cho phép" — Bài 4, 6</h2>
+<pre><code>if <ô đã xây>:
+    message = "..."
+elif <không đủ tài nguyên>:
+    message = "..."
+elif <không thoả luật mở khoá>:
+    message = "..."
+else:
+    <thực hiện hành động>   # chỉ chạy khi mọi điều kiện chặn đều KHÔNG đúng</code></pre>
+<p>Luôn kiểm tra từng lý do <strong>không</strong> cho phép trước; hành động thật sự nằm ở
+<code>else</code> cuối cùng. Không trừ tài nguyên/đổi state trước rồi "sửa lại" sau.</p>
+
+<h2>5. 4-lân cận trên lưới (grid neighbors) — Bài 6</h2>
+<pre><code>def get_neighbors(row, col):
+    candidates = [(row-1,col), (row+1,col), (row,col-1), (row,col+1)]
+    return [(r,c) for r,c in candidates if is_valid(r,c)]</code></pre>
+
+<h2>6. Máy trạng thái (state machine) — Bài 7</h2>
+<pre><code>game_state = "START"   # hoặc "PLAYING", "WON"
+
+if game_state == "START":
+    ...
+elif game_state == "PLAYING":
+    ...
+elif game_state == "WON":
+    ...</code></pre>
+<p>Quy tắc: <strong>mọi</strong> vẽ và xử lý sự kiện của một màn hình phải nằm trong đúng nhánh
+<code>game_state</code> tương ứng — không có ngoại lệ "chạy ở mọi state".</p>
+
+<h2>7. Reset state đầy đủ — Bài 7</h2>
+<pre><code>def reset_game():
+    global grid, resource, frame_counter, message, message_timer
+    grid = [[0]*GRID_COLS for _ in range(GRID_ROWS)]
+    resource = 20
+    frame_counter = 0
+    message, message_timer = "", 0</code></pre>
+<p>Checklist: mọi biến state toàn cục được thêm ở Bài 3-6 phải xuất hiện trong cả khai báo
+<code>global</code> lẫn phần gán lại giá trị khởi điểm.</p>
+
+<div class="sources">
+  Nguồn: <a href="https://www.pygame.org/docs/ref/rect.html" target="_blank" rel="noopener">pygame.Rect</a> ·
+  <a href="https://www.pygame.org/docs/ref/time.html" target="_blank" rel="noopener">pygame.time</a> ·
+  <a href="https://docs.python.org/3/reference/simple_stmts.html#the-global-statement" target="_blank" rel="noopener">Python — global statement</a>
+</div>
+
+</body>
+</html>

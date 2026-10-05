@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài 8: Vẽ icon Cây &amp; Đá bằng hình khối cơ bản</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Pygame · Bài 8 — nâng cấp hình ảnh (tuỳ chọn)</span>Vẽ icon Cây &amp; Đá bằng hình khối cơ bản</h1>
+
+<p>
+Từ Bài 3 tới giờ, mỗi ô trên lưới chỉ là một hình chữ nhật tô màu phẳng. Bài này nâng cấp hình
+ảnh đó thành những icon đơn giản — một <strong>cây</strong> và một <strong>tảng đá</strong> — mà
+không cần tải bất kỳ file ảnh nào. Đây là bài <strong>tuỳ chọn</strong> (polish), đúng như gợi ý ở
+cuối Bài 7: làm bản lõi chạy được trước, phần này chỉ để game trông "có hồn" hơn nếu bạn còn thời
+gian trước deadline.
+</p>
+
+<div class="callout">
+  <span class="label">Vì sao không dùng ảnh PNG tải trên mạng</span>
+  Dùng hình ảnh thật (<code>pygame.image.load</code>) là một hướng đi hợp lệ, nhưng nó tốn thời
+  gian tìm/chỉnh file đúng kích thước, và dễ dính vấn đề bản quyền nếu bạn lấy ảnh có sẵn trên
+  mạng rồi nộp bài. Vẽ icon bằng hình khối nguyên thuỷ (<code>pygame.draw</code>) thì
+  <strong>luôn là của riêng bạn</strong>, không phụ thuộc file ngoài, và đủ đơn giản để chỉnh sửa
+  ngay trong code bất cứ lúc nào.
+</div>
+
+<h2>Mô hình tư duy: icon = nhiều hình khối ghép lại, vẽ theo đúng thứ tự lớp</h2>
+
+<p>
+Một icon "phức tạp" hơn hình chữ nhật chỉ đơn giản là <strong>nhiều lệnh <code>pygame.draw</code>
+gọi liên tiếp</strong>, chồng lên nhau theo thứ tự — y hệt cách bạn xếp giấy màu lên nhau để làm
+thủ công. Hình vẽ <strong>sau</strong> sẽ nằm <strong>đè lên</strong> hình vẽ <strong>trước</strong>,
+vì Surface không có khái niệm "lớp" (layer) — nó chỉ nhớ pixel nào được vẽ sau cùng.
+</p>
+
+<h2>Hình khối mới: <code>pygame.draw.polygon</code></h2>
+
+<p>
+Bạn đã biết <code>rect</code> và <code>circle</code>. Để vẽ tảng đá (hình dạng không đều), cần
+thêm một hàm mới: <code>pygame.draw.polygon(surface, color, points, width=0)</code> — vẽ một đa
+giác nối liền các điểm trong danh sách <code>points</code> theo đúng thứ tự, tự động nối điểm
+cuối về điểm đầu.
+</p>
+
+<pre><code>points = [(100, 150), (120, 120), (150, 130), (160, 160), (120, 170)]
+pygame.draw.polygon(screen, (130, 130, 130), points)          # tô đặc (mặc định)
+pygame.draw.polygon(screen, (90, 90, 90), points, width=2)    # chỉ viền
+</code></pre>
+
+<div class="callout">
+  <span class="label">Lưu ý về <code>width</code> với polygon</span>
+  Giống <code>draw.rect</code>, <code>width=0</code> (mặc định) tô đặc, <code>width &gt; 0</code>
+  chỉ vẽ viền. Nhưng khác với <code>rect</code>: với <code>polygon</code>, viền vẽ bằng
+  <code>width &gt; 1</code> có thể <strong>lan ra ngoài</strong> biên gốc của hình một chút — nếu
+  thấy viền "phình to" hơn hình tô đặc bên dưới, đây chính là lý do, không phải bạn tính sai toạ độ.
+</div>
+
+<h2>Vẽ Cây (Tree): thân + tán lá</h2>
+
+<pre><code>def draw_tree(screen, x, y, size=40):
+    # (x, y) là điểm GỐC CÂY — chân cây chạm đất, không phải tâm hình
+    trunk_w, trunk_h = size // 4, size // 2
+    trunk_rect = (x - trunk_w // 2, y - trunk_h, trunk_w, trunk_h)
+    pygame.draw.rect(screen, (90, 60, 40), trunk_rect)          # 1. thân cây — vẽ TRƯỚC
+
+    canopy_center = (x, y - trunk_h)
+    canopy_radius = size // 2
+    pygame.draw.circle(screen, (40, 110, 50), canopy_center, canopy_radius)  # 2. tán lá — vẽ SAU, đè lên đỉnh thân
+</code></pre>
+
+<p>
+Để ý thứ tự: <strong>thân cây vẽ trước, tán lá vẽ sau</strong>. Nếu đảo ngược, phần đỉnh thân cây
+(đáng lẽ bị tán lá che) sẽ lòi ra đè lên tán lá, trông sai hẳn. Đây chính là "thứ tự lớp" nhắc ở
+phần Mô hình tư duy, áp dụng ngay vào ví dụ đầu tiên.
+</p>
+
+<h2>Vẽ Đá (Stone): một đa giác bất quy tắc</h2>
+
+<pre><code>def draw_stone(screen, x, y, size=40):
+    # (x, y) là điểm GIỮA ĐÁY tảng đá
+    points = [
+        (x - size // 2, y),
+        (x - size // 3, y - size // 3),
+        (x,              y - size // 2),
+        (x + size // 3,  y - size // 3),
+        (x + size // 2,  y),
+    ]
+    pygame.draw.polygon(screen, (130, 130, 130), points)        # 1. tô đặc màu xám
+    pygame.draw.polygon(screen, (90, 90, 90), points, width=2)  # 2. viền sẫm hơn, đè lên mép
+</code></pre>
+
+<p>
+5 điểm trong <code>points</code> đi theo thứ tự <strong>từ trái sang phải, nhô dần lên rồi hạ
+xuống</strong> — giống hình một mái vòm gồ ghề. Thử tự vẽ 5 điểm này ra giấy trước khi gõ code là
+cách tốt nhất để không bị rối thứ tự.
+</p>
+
+<div class="callout">
+  <span class="label">Pitfall — điểm polygon vẽ sai thứ tự</span>
+  Nếu các điểm trong <code>points</code> không theo đúng thứ tự đi quanh hình (ví dụ nhảy cóc qua
+  lại), các cạnh nối sẽ <strong>bắt chéo nhau</strong>, cho ra hình dạng méo mó kiểu "con bướm"
+  thay vì một khối liền mạch. Luôn liệt kê điểm theo đúng một chiều duy nhất quanh hình (ví dụ
+  toàn bộ theo chiều kim đồng hồ, hoặc toàn bộ ngược chiều kim đồng hồ).
+</div>
+
+<h2>Gắn icon vào lưới (nối lại Bài 3 &amp; Bài 5)</h2>
+
+<pre><code>def draw_grid(screen, grid):
+    for row in range(GRID_ROWS):
+        for col in range(GRID_COLS):
+            x, y = col * TILE_SIZE, row * TILE_SIZE
+            rect = (x, y, TILE_SIZE, TILE_SIZE)
+            cell = grid[row][col]
+
+            base_color = (50, 70, 50) if cell == 0 else (40, 55, 40)
+            pygame.draw.rect(screen, base_color, rect)           # nền ô — luôn vẽ trước icon
+            pygame.draw.rect(screen, (20, 20, 20), rect, width=2)
+
+            center_x = x + TILE_SIZE // 2
+            bottom_y = y + TILE_SIZE - 8   # chừa 8px lề dưới cho icon không dính sát viền ô
+
+            if cell == 1:       # Trạm Gỗ -> vẽ Cây
+                draw_tree(screen, center_x, bottom_y, size=TILE_SIZE - 20)
+            elif cell == 2:     # Tháp Canh -> vẽ Đá
+                draw_stone(screen, center_x, bottom_y, size=TILE_SIZE - 20)
+</code></pre>
+
+<p>
+Đây chính là lý do cả <code>draw_tree</code> và <code>draw_stone</code> đều nhận <code>(x, y)</code>
+là điểm <strong>đáy</strong>, không phải tâm: khi gắn vào lưới, bạn luôn muốn icon "đứng" trên nền
+ô, không lơ lửng giữa ô. Quy ước đáy-làm-gốc là cách làm chuẩn cho mọi icon đối tượng đứng trên
+mặt đất trong game 2D nhìn từ trên xuống hoặc chéo góc.
+</p>
+
+<h2>Những lỗi thường gặp</h2>
+
+<div class="callout">
+  <span class="label">Pitfall #1 — vẽ icon trước nền ô</span>
+  Nếu lệnh vẽ nền ô (<code>pygame.draw.rect(screen, base_color, rect)</code>) nằm <strong>sau</strong>
+  lệnh gọi <code>draw_tree</code>/<code>draw_stone</code>, nền ô sẽ đè mất icon vừa vẽ — màn hình
+  chỉ còn lại ô màu phẳng, y hệt trước khi làm bài này.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #2 — lẫn lộn "tâm" và "đáy" khi tính toạ độ</span>
+  Hàm <code>draw_tree</code> coi <code>(x, y)</code> là <strong>đáy</strong> (chân cây), nhưng
+  <code>canopy_center</code> bên trong hàm lại là một <strong>tâm hình tròn</strong> khác, tính
+  dựa trên đáy đó. Nếu bạn quen tay truyền toạ độ <strong>tâm ô</strong> (như
+  <code>get_rect(center=...)</code> ở Bài 2) vào thẳng <code>draw_tree</code>, cây sẽ vẽ lệch nửa
+  ô lên trên so với bạn mong đợi. Luôn kiểm tra: hàm đang cần toạ độ tâm hay toạ độ đáy?
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #3 — <code>size</code> quá lớn so với <code>TILE_SIZE</code></span>
+  Nếu truyền <code>size</code> bằng đúng <code>TILE_SIZE</code> (không trừ bớt), icon sẽ tràn ra
+  ngoài viền ô, chồng lên ô bên cạnh. Luôn để icon nhỏ hơn ô một chút (ví dụ
+  <code>TILE_SIZE - 20</code> như ví dụ trên) để còn khoảng trống nhìn rõ viền từng ô.
+</div>
+
+<h2>Thử tự tay làm</h2>
+
+<ol class="task-list">
+  <li>Viết <code>draw_tree</code> và <code>draw_stone</code>, gọi thử độc lập (không cần lưới) tại vài toạ độ cố định để xem hình dạng trước.</li>
+  <li>Ghép vào <code>draw_grid</code> theo đúng loại công trình (Trạm Gỗ &rarr; Cây, Tháp Canh &rarr; Đá), thay cho màu phẳng cũ.</li>
+  <li>Chạy game đầy đủ (từ Bài 7), xây cả hai loại công trình, xác nhận icon hiện đúng loại, đúng vị trí, không tràn ra ngoài ô.</li>
+  <li><strong>Nâng cao:</strong> thêm một icon thứ ba (tự thiết kế hình dạng riêng — ví dụ một bụi cây nhỏ bằng 2-3 hình tròn chồng nhau) cho loại công trình bạn tự thêm ở Bài 5 nếu có.</li>
+</ol>
+
+<h2>Kiểm tra lại hiểu biết</h2>
+
+<div class="quiz" data-correct="1">
+  <p class="q-prompt">Trong <code>draw_tree</code>, vì sao lệnh vẽ thân cây (<code>trunk</code>) phải nằm TRƯỚC lệnh vẽ tán lá (<code>canopy</code>)?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Thứ tự tham số của draw.rect/draw.circle không bắt buộc theo cách này.">Vì pygame.draw.rect luôn phải gọi trước draw.circle</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — hình vẽ sau sẽ đè lên hình vẽ trước, nên tán lá cần vẽ sau để che đúng phần đỉnh thân cây.">Để tán lá vẽ sau đè lên đúng phần đỉnh thân cây</button></li>
+    <li><button class="q-opt" data-wrong-msg="Tốc độ khung hình không phụ thuộc vào thứ tự hai lệnh vẽ này.">Để tăng tốc độ khung hình</button></li>
+    <li><button class="q-opt" data-wrong-msg="Màu sắc được truyền trực tiếp qua tham số color, không phụ thuộc thứ tự vẽ.">Để màu thân cây không bị đổi thành màu tán lá</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="2">
+  <p class="q-prompt"><code>pygame.draw.polygon(screen, color, points, width=2)</code> khác gì so với <code>width=0</code> (mặc định)?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Số điểm trong points không đổi theo width.">width=2 giảm số điểm trong đa giác xuống còn 2</button></li>
+    <li><button class="q-opt" data-wrong-msg="Đây không liên quan tới kích thước surface nền.">width=2 phóng to toàn bộ surface lên 2 lần</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — width=0 tô đặc, width>0 chỉ vẽ viền với độ dày tương ứng.">width=0 tô đặc hình; width=2 chỉ vẽ viền dày 2px</button></li>
+    <li><button class="q-opt" data-wrong-msg="Thứ tự điểm trong points do bạn tự liệt kê, width không sắp xếp lại chúng.">width=2 tự sắp xếp lại thứ tự các điểm cho đúng</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="0">
+  <p class="q-prompt">Vì sao <code>draw_tree(screen, x, y, size)</code> coi <code>(x, y)</code> là điểm ĐÁY (chân cây) thay vì tâm?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-right-msg="Chính xác — quy ước đáy-làm-gốc giúp icon 'đứng' đúng trên nền ô khi ghép vào lưới, thay vì lơ lửng giữa ô.">Để icon đứng đúng trên nền ô khi gắn vào lưới, thay vì lơ lửng giữa ô</button></li>
+    <li><button class="q-opt" data-wrong-msg="pygame.draw.circle/rect không bắt buộc toạ độ đáy — đây là lựa chọn thiết kế của hàm draw_tree, không phải giới hạn của Pygame.">Vì pygame.draw.circle bắt buộc nhận toạ độ đáy</button></li>
+    <li><button class="q-opt" data-wrong-msg="Tốc độ xử lý không phụ thuộc vào quy ước toạ độ gốc là đáy hay tâm.">Để tính toán nhanh hơn</button></li>
+    <li><button class="q-opt" data-wrong-msg="Màu sắc được truyền riêng qua tham số color, không liên quan tới quy ước toạ độ gốc.">Để tránh nhầm lẫn màu thân cây và tán lá</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<p class="ask-your-teacher">
+  Nếu icon vẽ ra bị lệch vị trí, méo hình, hoặc đè sai lớp — cứ dán hàm <code>draw_tree</code>/<code>draw_stone</code>
+  của bạn lên hỏi mình, kèm mô tả "nó đang trông như thế nào" để dễ hình dung.
+</p>
+
+<div class="sources">
+  <strong>Nguồn tham khảo chính cho bài này:</strong>
+  <ul>
+    <li><a href="https://www.pygame.org/docs/ref/draw.html" target="_blank" rel="noopener">pygame.draw — tài liệu API chính thức</a>, đặc biệt chữ ký <code>polygon(surface, color, points, width=0)</code>.</li>
+    <li><a href="https://pygame.readthedocs.io/en/latest/2_draw/draw.html" target="_blank" rel="noopener">Drawing graphics primitives</a> — Pygame tutorial, tổng quan các hàm <code>pygame.draw</code> kèm ví dụ.</li>
+  </ul>
+  Xem thêm: <a href="../reference/primitive-icons-cheatsheet.html">Primitive Icons — Cheat Sheet</a>.
+</div>
+
+<div class="nav-links">
+  <span>&larr; <a href="0007-win-condition-and-screens.html">Bài 7: Điều kiện thắng + màn hình bắt đầu/thắng</a></span>
+  <span>Bài tuỳ chọn tiếp theo (nếu còn thời gian): hiệu ứng chuyển động đơn giản cho icon</span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

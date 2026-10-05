@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài 1: Window và Game Loop</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Pygame · Bài 1 trên hành trình làm HUD</span>Window và Game Loop</h1>
+
+<p>
+Mục tiêu cuối cùng của bạn là làm một HUD (<em>Heads-Up Display</em>) cho project game ở trường —
+thanh máu, điểm số, có thể cả menu pause. Nhưng Pygame <strong>không có sẵn một "lớp UI"</strong>
+nằm chồng lên trên game của bạn như các framework UI khác (HTML/CSS, hay các UI toolkit có sẵn
+widget). Mọi thứ — kể cả UI — đều phải tự tay bạn vẽ lại, từng frame một, bên trong một vòng lặp
+duy nhất. Vì vậy trước khi đụng vào HUD, vòng lặp đó phải trở thành phản xạ tự nhiên. Đó là toàn
+bộ nội dung bài học hôm nay.
+</p>
+
+<h2>Mô hình tư duy (mental model)</h2>
+
+<p>
+Một cửa sổ Pygame thực chất chỉ là một lưới pixel hình chữ nhật, gọi là
+<a href="https://www.pygame.org/docs/ref/surface.html" target="_blank" rel="noopener">Surface</a>.
+Bạn có thể tưởng tượng Surface giống như một <strong>tấm vải trắng</strong> (canvas) — bạn vẽ gì
+lên đó thì nó cứ nằm nguyên ở đó, cho tới khi bạn vẽ đè lên hoặc xoá nó đi.
+</p>
+
+<p>
+Điểm quan trọng nhất: Pygame <strong>không tự nhớ</strong> bất cứ thứ gì giữa các frame. Không có
+object "nút bấm" nào tồn tại sẵn, không có "thanh máu" nào được ghi nhớ trong bộ nhớ của Pygame.
+Mỗi frame, chương trình của bạn phải tự làm đủ 5 bước sau, lặp đi lặp lại khoảng 60 lần mỗi giây:
+</p>
+
+<ol>
+  <li><strong>Handle events (xử lý sự kiện)</strong> — "hút cạn" hàng đợi những gì hệ điều hành vừa báo cho bạn (nhấn phím, click chuột, bấm nút đóng cửa sổ).</li>
+  <li><strong>Update (cập nhật)</strong> — thay đổi dữ liệu của game dựa trên những gì vừa xảy ra (di chuyển nhân vật, trừ máu, cộng điểm).</li>
+  <li><strong>Draw (vẽ)</strong> — tô lại <em>toàn bộ</em> frame từ đầu lên Surface: background, nhân vật, và đúng vậy — cả UI.</li>
+  <li><strong>Flip (hiển thị)</strong> — đẩy frame vừa vẽ xong ra cho người chơi nhìn thấy.</li>
+  <li><strong>Tick (giữ nhịp)</strong> — chờ vừa đủ để giữ đúng tốc độ khung hình (frame rate) mong muốn.</li>
+</ol>
+
+<p>Chuỗi 5 bước này gọi là <strong>game loop</strong>, và nó lặp lại liên tục suốt thời gian game chạy.</p>
+
+<div class="callout">
+  <span class="label">Vì sao điều này quan trọng với HUD của bạn</span>
+  Không hề có một hàm kiểu <code>healthbar.update_value(80)</code> mà giá trị đó sẽ tự động "ở lại"
+  trên màn hình mãi mãi. Thanh máu của bạn thực ra chỉ là <strong>một hình chữ nhật</strong> mà bạn
+  vẽ lại mỗi frame, dựa trên con số máu hiện tại trong biến Python của bạn. Nếu bạn ngừng vẽ lại nó
+  ở một frame nào đó, frame tiếp theo nó sẽ <strong>biến mất</strong> — vì màn hình không hề "nhớ"
+  gì cả, nó chỉ hiển thị đúng những gì bạn vừa vẽ. Hiểu rõ điều này ngay từ bây giờ sẽ tiết kiệm
+  cho bạn rất nhiều thời gian debug về sau, khi HUD của bạn "chớp tắt" hoặc "biến mất" một cách khó hiểu.
+</div>
+
+<h2>Vòng lặp tối giản</h2>
+
+<pre><code>import pygame
+
+pygame.init()
+screen = pygame.display.set_mode((800, 600))
+clock = pygame.time.Clock()
+running = True
+
+while running:
+    # 1. Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # 2. Update (chưa có gì để update ở bài này — sẽ xuất hiện ở bài sau)
+
+    # 3. Draw — vẽ lại toàn bộ frame từ đầu
+    screen.fill((30, 30, 40))                      # xoá frame trước
+    pygame.draw.rect(screen, (200, 60, 60), (40, 40, 200, 24))  # một "thanh máu" tạm thời
+
+    # 4. Flip — hiển thị ra màn hình
+    pygame.display.flip()
+
+    # 5. Tick — giới hạn 60 frame mỗi giây
+    clock.tick(60)
+
+pygame.quit()
+</code></pre>
+
+<p>
+Để ý rằng <code>screen.fill(...)</code> chạy ở <strong>mọi</strong> vòng lặp, trước khi vẽ bất cứ
+thứ gì khác. Nếu bỏ dòng này đi, bạn sẽ thấy hình vẽ của mọi frame bị "chồng" lên nhau như vết bẩn
+— vì như đã nói, Surface không tự xoá gì cả. <strong>Chính bạn</strong> là bộ nhớ ở đây; vòng lặp
+chỉ là cơ hội để bạn dùng bộ nhớ đó mỗi 1/60 giây.
+</p>
+
+<h3>Từng lệnh làm gì, chi tiết</h3>
+
+<ul>
+  <li><code>pygame.init()</code> — khởi động tất cả các module bên trong Pygame (display, font, mixer âm thanh...). Luôn gọi đầu tiên, trước bất kỳ lệnh Pygame nào khác.</li>
+  <li><code>pygame.display.set_mode((w, h))</code> — tạo cửa sổ kích thước <code>w × h</code> pixel, và trả về chính Surface đại diện cho cửa sổ đó (biến <code>screen</code>).</li>
+  <li><code>pygame.event.get()</code> — lấy ra toàn bộ sự kiện đang chờ xử lý kể từ lần gọi trước. Nếu bạn <strong>không bao giờ</strong> gọi hàm này, hệ điều hành (Windows/macOS) sẽ nghĩ app của bạn bị treo — đây là nguyên nhân số 1 khiến cửa sổ hiện chữ "Not Responding".</li>
+  <li><code>pygame.draw.rect(surface, color, rect)</code> — một trong các hàm vẽ hình nguyên thuỷ (xem thêm <a href="https://www.pygame.org/docs/ref/draw.html" target="_blank" rel="noopener">tài liệu pygame.draw</a>); đây chính xác là thứ bạn sẽ dùng để vẽ thanh máu sau này.</li>
+  <li><code>pygame.display.flip()</code> — đẩy toàn bộ những gì bạn vừa vẽ ra cửa sổ thật sự đang hiển thị cho người dùng.</li>
+  <li><code>clock.tick(60)</code> — tạm dừng vừa đủ để giữ tốc độ ~60 frame/giây, để game không chạy nhanh/chậm khác nhau tuỳ theo máy tính của người chơi mạnh hay yếu.</li>
+</ul>
+
+<h2>Vì sao lại cần <code>color</code> và <code>rect</code> theo đúng định dạng đó?</h2>
+
+<p>
+Hai chi tiết nhỏ hay gây bối rối lúc mới học:
+</p>
+
+<ul>
+  <li><strong>Màu (color)</strong> trong Pygame luôn là một tuple 3 số <code>(R, G, B)</code>, mỗi số từ 0–255, theo chuẩn RGB. <code>(200, 60, 60)</code> là một màu đỏ đất; <code>(30, 30, 40)</code> là một màu xám-xanh tối làm nền. Bạn có thể dùng trang như <a href="https://www.w3schools.com/colors/colors_rgb.asp" target="_blank" rel="noopener">bảng màu RGB</a> để thử phối màu trước khi code.</li>
+  <li><strong>Hình chữ nhật (rect)</strong> trong lệnh <code>pygame.draw.rect</code> là tuple 4 số <code>(x, y, width, height)</code>: toạ độ góc trên-trái, rồi tới chiều rộng và chiều cao. Gốc toạ độ <code>(0, 0)</code> nằm ở <strong>góc trên-trái</strong> màn hình (không phải góc dưới-trái như trong toán học) — trục Y tăng dần đi <strong>xuống</strong>. Đây là quy ước gần như mọi thư viện đồ hoạ 2D đều dùng, không riêng Pygame.</li>
+</ul>
+
+<h2>Thử tự tay làm</h2>
+
+<ol class="task-list">
+  <li>Cài Pygame nếu chưa có: <code>pip install pygame</code></li>
+  <li>Lưu đoạn code ở trên thành file <code>main.py</code> rồi chạy. Xác nhận một cửa sổ tối màu hiện ra, có một hình chữ nhật đỏ ở góc trên-trái, và nút đóng cửa sổ thực sự đóng được chương trình.</li>
+  <li>Đổi màu và kích thước của hình chữ nhật. Chạy lại. Xác nhận bạn thấy thay đổi ngay — đây là cách bạn tự chứng minh cho mình thấy không có gì bị "cache" lại cả.</li>
+  <li>Thử đổi toạ độ <code>(x, y)</code> của hình chữ nhật sang một vài vị trí khác nhau (ví dụ góc dưới-phải màn hình) để quen với hệ trục toạ độ Y hướng xuống.</li>
+  <li><strong>Nâng cao:</strong> comment dòng <code>screen.fill(...)</code> lại, rồi kéo cửa sổ di chuyển hoặc đổi kích thước nó. Quan sát chuyện gì xảy ra với hình vẽ, sau đó bỏ comment, trả lại dòng đó như cũ.</li>
+</ol>
+
+<h2>Những lỗi thường gặp khi mới học</h2>
+
+<div class="callout">
+  <span class="label">Pitfall #1</span>
+  Gọi <code>pygame.display.flip()</code> hoặc <code>screen.fill()</code> <strong>bên ngoài</strong>
+  vòng <code>while</code> thay vì bên trong — kết quả là màn hình chỉ vẽ đúng một lần rồi đứng yên,
+  dù logic update vẫn chạy ngầm bên dưới.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #2</span>
+  Quên gọi <code>clock.tick(60)</code> — vòng lặp sẽ chạy nhanh hết mức CPU cho phép (có khi vài
+  trăm, vài nghìn frame/giây), khiến quạt máy tính kêu to và animation sau này chạy nhanh/chậm
+  thất thường tuỳ máy.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #3</span>
+  Đặt lệnh vẽ (<code>pygame.draw...</code>) <strong>trước</strong> <code>screen.fill(...)</code>
+  trong cùng một frame — fill sẽ xoá sạch những gì bạn vừa vẽ ngay lập tức, vì fill luôn phải chạy
+  <strong>đầu tiên</strong> trong bước Draw.
+</div>
+
+<h2>Kiểm tra lại hiểu biết</h2>
+
+<div class="quiz" data-correct="2">
+  <p class="q-prompt">Nếu bạn xoá dòng <code>screen.fill((30, 30, 40))</code> nhưng giữ nguyên mọi thứ khác, chuyện gì xảy ra với hình chữ nhật đỏ trên màn hình?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Chưa đúng — không có gì tự động xoá hình vẽ cũ cả.">Nó biến mất sau một frame</button></li>
+    <li><button class="q-opt" data-wrong-msg="Pygame không giới hạn số lệnh vẽ theo kiểu đó.">Chương trình báo lỗi ngay lập tức</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — Surface giữ nguyên bất cứ gì được vẽ lần cuối; fill() mới là thứ xoá nó đi." data-wrong-msg="">Nó vẫn còn đó, mãi mãi qua từng frame</button></li>
+    <li><button class="q-opt" data-wrong-msg="Việc đóng cửa sổ không liên quan gì tới fill().">Cửa sổ sẽ không đóng được nữa</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="1">
+  <p class="q-prompt">Vì sao <code>pygame.event.get()</code> phải được gọi ở mọi vòng lặp, dù bạn không quan tâm tới hầu hết sự kiện?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Tốc độ khung hình do clock.tick() quyết định, không liên quan tới event.">Nó quyết định tốc độ khung hình</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — bỏ dòng này thì hàng đợi sự kiện của hệ điều hành bị dồn lại, cửa sổ sẽ báo bị treo.">Nó hút cạn hàng đợi sự kiện hệ điều hành</button></li>
+    <li><button class="q-opt" data-wrong-msg="Việc vẽ lại màn hình do pygame.draw và blit đảm nhiệm, tách biệt với đây.">Nó vẽ lại toàn bộ màn hình</button></li>
+    <li><button class="q-opt" data-wrong-msg="Font chữ là một module riêng, không liên quan tới sự kiện.">Nó nạp các file font chữ</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="0">
+  <p class="q-prompt">Trong <code>pygame.draw.rect(screen, (200, 60, 60), (40, 40, 200, 24))</code>, bốn số <code>(40, 40, 200, 24)</code> đại diện cho điều gì?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-right-msg="Chính xác — x, y là góc trên-trái; hai số sau là chiều rộng và chiều cao.">Toạ độ góc, rồi chiều rộng và chiều cao</button></li>
+    <li><button class="q-opt" data-wrong-msg="Bốn số này không phải mã màu — màu đã nằm ở tham số trước đó rồi.">Bốn thành phần của một mã màu RGBA</button></li>
+    <li><button class="q-opt" data-wrong-msg="Rect không mang thông tin về tốc độ khung hình.">Tốc độ khung hình tối thiểu và tối đa</button></li>
+    <li><button class="q-opt" data-wrong-msg="Đây không phải chỉ số viền hay bo góc.">Độ dày viền và bán kính bo góc</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<p class="ask-your-teacher">
+  Nếu bị kẹt chỗ nào, hoặc chương trình chạy khác với mô tả ở trên — cứ hỏi thẳng giáo viên (chính
+  tôi) ngay, thay vì tự đoán mò. Đó là lý do tôi ở đây.
+</p>
+
+<div class="sources">
+  <strong>Nguồn tham khảo chính cho bài này:</strong>
+  <ul>
+    <li><a href="https://www.pygame.org/docs/tut/newbieguide.html" target="_blank" rel="noopener">A Newbie Guide to pygame</a> — tài liệu chính thức từ pygame.org. Đọc thêm nếu muốn góc nhìn đầy đủ, chính thống hơn về các khái niệm ở trên.</li>
+    <li><a href="https://realpython.com/pygame-a-primer/" target="_blank" rel="noopener">Pygame: A Primer on Game Programming in Python</a> (Real Python) — một bài hướng dẫn sâu hơn, được kiểm chứng kỹ, về cùng vòng lặp này, cộng thêm phần tiếp theo (sprite, va chạm).</li>
+    <li><a href="https://www.pygame.org/docs/ref/surface.html" target="_blank" rel="noopener">pygame.Surface — tài liệu API chính thức</a>.</li>
+    <li><a href="https://www.pygame.org/docs/ref/draw.html" target="_blank" rel="noopener">pygame.draw — tài liệu API chính thức</a>.</li>
+  </ul>
+</div>
+
+<div class="nav-links">
+  <span>&larr; Điểm bắt đầu hành trình</span>
+  <span><a href="0002-text-and-fonts.html">Bài 2: Vẽ chữ với pygame.font &rarr;</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

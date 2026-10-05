@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài 2: Vẽ chữ với pygame.font</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Pygame · Bài 2 trên hành trình làm HUD</span>Vẽ chữ với pygame.font</h1>
+
+<p>
+Ở <a href="0001-window-and-game-loop.html">Bài 1</a>, bạn đã có một <code>game loop</code> chạy
+đúng và vẽ được một hình chữ nhật đỏ — đó chính là nguyên liệu cho thanh máu. Nhưng HUD thật sự
+thì cần cả <strong>chữ</strong>: điểm số, số máu dạng con số, tên người chơi, đồng hồ đếm giờ.
+Bài này dạy bạn cách đó: module <code>pygame.font</code>.
+</p>
+
+<div class="callout">
+  <span class="label">Điểm khác biệt quan trọng so với HTML/CSS</span>
+  Nếu bạn từng làm web, bạn quen với việc viết <code>&lt;p&gt;Score: 10&lt;/p&gt;</code> và trình
+  duyệt tự vẽ chữ "Score: 10" lên màn hình, bạn chỉ cần đổi nội dung text là nó tự cập nhật.
+  Pygame <strong>không có khái niệm "text element"</strong> nào tồn tại sẵn như vậy. Chữ trong
+  Pygame không phải là chữ thật — nó là một <strong>tấm ảnh (Surface)</strong> được "nướng" ra một
+  lần từ một chuỗi string cụ thể. Muốn đổi nội dung chữ, bạn phải nướng lại một tấm ảnh mới.
+</div>
+
+<h2>Ba bước để vẽ một dòng chữ</h2>
+
+<p>Quy trình luôn gồm đúng 3 bước, không hơn không kém:</p>
+
+<ol>
+  <li><strong>Tạo font</strong> — chọn kiểu chữ và kích thước, tạo ra một object <code>Font</code>.</li>
+  <li><strong>Render</strong> — đưa một chuỗi string cụ thể vào font đó, nhận lại một <code>Surface</code> chứa hình ảnh của chữ đó.</li>
+  <li><strong>Blit</strong> — dán (blit) tấm Surface chữ đó lên <code>screen</code>, giống hệt cách bạn dán bất kỳ hình ảnh nào khác.</li>
+</ol>
+
+<pre><code>import pygame
+
+pygame.init()
+screen = pygame.display.set_mode((800, 600))
+clock = pygame.time.Clock()
+
+# BƯỚC 1 — Tạo font: CHỈ làm một lần, ở ngoài game loop
+font = pygame.font.SysFont(None, 36)   # None = dùng font mặc định của hệ thống, size 36
+
+score = 0
+running = True
+
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    score += 1  # giả lập điểm số tăng dần theo thời gian, để thấy chữ thật sự "động"
+
+    screen.fill((30, 30, 40))
+
+    # BƯỚC 2 — Render: PHẢI làm lại mỗi khi nội dung thay đổi
+    text_surface = font.render(f"Score: {score}", True, (255, 255, 255))
+
+    # BƯỚC 3 — Blit: dán ảnh chữ lên màn hình, như dán bất kỳ ảnh nào khác
+    screen.blit(text_surface, (20, 20))
+
+    pygame.display.flip()
+    clock.tick(60)
+
+pygame.quit()
+</code></pre>
+
+<h2>Giải thích từng tham số</h2>
+
+<h3><code>pygame.font.SysFont(name, size)</code></h3>
+<ul>
+  <li><code>name</code> — tên font hệ thống, ví dụ <code>"arial"</code>, <code>"consolas"</code>. Truyền <code>None</code> để Pygame tự chọn một font mặc định an toàn, luôn có sẵn.</li>
+  <li><code>size</code> — kích thước chữ tính bằng point, ví dụ <code>36</code>.</li>
+</ul>
+<p>
+Nếu bạn muốn dùng một file font tải về (<code>.ttf</code>) thay vì font cài sẵn trên máy — ví dụ
+để game của bạn trông giống nhau trên mọi máy, không phụ thuộc máy đó có cài font gì — dùng
+<code>pygame.font.Font("duong_dan/toi/file.ttf", 36)</code> thay vì <code>SysFont</code>.
+</p>
+
+<div class="callout">
+  <span class="label">Quan trọng — hiệu năng (performance)</span>
+  <code>pygame.font.SysFont(...)</code> và <code>pygame.font.Font(...)</code> là các lệnh
+  <strong>chậm</strong> — chúng phải đọc và dựng (rasterize) toàn bộ bộ chữ cái. Vì vậy luôn tạo
+  object <code>font</code> <strong>một lần duy nhất, bên ngoài <code>while</code> loop</strong>,
+  y hệt cách bạn chỉ gọi <code>pygame.display.set_mode()</code> một lần. Ngược lại, hàm
+  <code>.render(...)</code> thì <strong>bắt buộc</strong> phải gọi lại mỗi khi nội dung chữ thay
+  đổi (và vì thế thường nằm bên trong loop) — đây chính là lý do tại sao bước 1 và bước 2 ở trên
+  nằm ở hai vị trí khác nhau trong code.
+</div>
+
+<h3><code>font.render(text, antialias, color, background=None)</code></h3>
+<ul>
+  <li><code>text</code> — chuỗi string cần vẽ. <strong>Chỉ vẽ được một dòng</strong> — ký tự xuống dòng <code>\n</code> sẽ <em>không</em> được xử lý (sẽ nói ở phần "lỗi thường gặp" bên dưới).</li>
+  <li><code>antialias</code> — <code>True</code>/<code>False</code>. Bật <code>True</code> để viền chữ mượt hơn (gần như luôn nên bật True cho chữ UI đọc được rõ ràng).</li>
+  <li><code>color</code> — tuple <code>(R, G, B)</code>, giống hệt màu dùng trong <code>pygame.draw</code> ở Bài 1.</li>
+  <li><code>background</code> — tham số tuỳ chọn (có thể bỏ qua). Nếu truyền một màu, chữ sẽ có nền màu đó thay vì nền trong suốt.</li>
+</ul>
+<p>Kết quả trả về là một <code>Surface</code> mới — y hệt loại object mà <code>screen</code> cũng là, chỉ khác là nhỏ hơn và chứa hình chữ.</p>
+
+<h3><code>screen.blit(surface, position)</code></h3>
+<p>
+<code>blit</code> nghĩa là "dán ảnh này lên ảnh kia". <code>position</code> thường là tuple
+<code>(x, y)</code> cho góc trên-trái của ảnh được dán. Đây là hàm bạn sẽ dùng cho <strong>mọi</strong>
+thứ không phải hình nguyên thuỷ (primitive) — chữ, hình ảnh PNG, icon — mọi thứ.
+</p>
+
+<h2>Canh chỉnh vị trí chữ bằng <code>get_rect()</code></h2>
+
+<p>
+Truyền toạ độ <code>(x, y)</code> tay như trên luôn canh theo góc trên-trái của chữ. Nhưng với HUD,
+bạn thường muốn canh giữa (ví dụ tiêu đề "GAME OVER" nằm giữa màn hình) hoặc canh theo góc phải
+(ví dụ điểm số nằm góc trên-phải). Cách làm chuẩn:
+</p>
+
+<pre><code># Canh giữa màn hình theo cả chiều ngang lẫn dọc
+text_surface = font.render("GAME OVER", True, (255, 80, 80))
+text_rect = text_surface.get_rect(center=(400, 300))   # (400, 300) = tâm màn hình 800x600
+screen.blit(text_surface, text_rect)
+
+# Canh theo góc trên-phải (hay dùng cho điểm số)
+text_surface = font.render(f"Score: {score}", True, (255, 255, 255))
+text_rect = text_surface.get_rect(topright=(780, 20))
+screen.blit(text_surface, text_rect)
+</code></pre>
+
+<p>
+<code>get_rect()</code> trả về một object <code>Rect</code> bao vừa khít tấm Surface chữ, và nó
+hiểu các từ khoá canh chỉnh như <code>center</code>, <code>topleft</code>, <code>topright</code>,
+<code>bottomleft</code>, <code>midtop</code>... Lưu ý <code>screen.blit()</code> nhận cả
+<code>Rect</code> lẫn tuple toạ độ thuần — dùng <code>Rect</code> tiện hơn vì nó tự tính đúng vị
+trí góc trên-trái cần thiết để đạt được kiểu canh chỉnh bạn muốn.
+</p>
+
+<h2>Những lỗi thường gặp</h2>
+
+<div class="callout">
+  <span class="label">Pitfall #1 — chữ xuống dòng không hoạt động</span>
+  <code>font.render("Dòng 1\nDòng 2", ...)</code> sẽ <strong>không</strong> tự xuống dòng — nó sẽ
+  vẽ cả hai dòng dính liền trên một dòng ngang (hoặc một ký tự lạ). Muốn chữ nhiều dòng, bạn phải
+  tự tách chuỗi bằng <code>.split("\n")</code> rồi gọi <code>render()</code> + <code>blit()</code>
+  riêng cho từng dòng, tự cộng dồn toạ độ <code>y</code> lên sau mỗi dòng.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #2 — tạo lại font mỗi frame</span>
+  Gọi <code>pygame.font.SysFont(...)</code> bên <strong>trong</strong> vòng <code>while</code> là
+  lỗi hiệu năng phổ biến nhất của người mới — game sẽ chạy chậm hẳn đi khi có nhiều chữ trên màn
+  hình, dù logic không có gì nặng. Luôn kiểm tra: lệnh tạo font nằm phía trên <code>while
+  running:</code>, không nằm bên trong nó.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #3 — quên gọi <code>pygame.font.init()</code></span>
+  Thường thì <code>pygame.init()</code> đã tự gọi luôn <code>pygame.font.init()</code> bên trong
+  nó, nên bạn hiếm khi gặp lỗi này. Nhưng nếu bạn thấy lỗi <code>font not initialized</code>, đây
+  chính là nguyên nhân — đảm bảo <code>pygame.init()</code> luôn là dòng Pygame đầu tiên trong file.
+</div>
+
+<h2>Thử tự tay làm</h2>
+
+<ol class="task-list">
+  <li>Lấy code game loop từ Bài 1 (có hình chữ nhật đỏ), thêm phần vẽ chữ "Score: {số}" như ví dụ ở trên, với số tăng dần mỗi frame.</li>
+  <li>Dùng <code>get_rect(topright=...)</code> để đặt điểm số vào góc trên-phải màn hình thay vì góc trên-trái.</li>
+  <li>Thêm một dòng chữ thứ hai, cố định (không đổi), ví dụ tên game của bạn, canh giữa phía trên màn hình bằng <code>midtop</code>.</li>
+  <li><strong>Nâng cao:</strong> Thử đổi tạm lệnh tạo <code>font = pygame.font.SysFont(None, 36)</code> vào bên trong vòng <code>while</code>. Quan sát xem FPS/độ mượt có giảm rõ rệt không (có thể thêm <code>print(clock.get_fps())</code> để thấy số liệu cụ thể), rồi chuyển nó ra ngoài lại như ban đầu.</li>
+</ol>
+
+<h2>Kiểm tra lại hiểu biết</h2>
+
+<div class="quiz" data-correct="1">
+  <p class="q-prompt">Vì sao lệnh tạo font (<code>pygame.font.SysFont(...)</code>) nên được đặt bên ngoài vòng lặp <code>while</code>, còn lệnh <code>.render(...)</code> thì thường đặt bên trong?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Cú pháp Python cho phép gọi cả hai ở bất kỳ đâu — đây không phải vấn đề cú pháp.">Vì cú pháp Python bắt buộc như vậy</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — tạo font tốn chi phí, còn nội dung chữ (như điểm số) thường đổi mỗi frame nên phải render lại.">Tạo font tốn chi phí xử lý; nội dung chữ lại hay đổi mỗi frame</button></li>
+    <li><button class="q-opt" data-wrong-msg="Thứ tự hai lệnh này không liên quan gì tới sự kiện QUIT.">Vì sự kiện QUIT cần nằm giữa hai lệnh đó</button></li>
+    <li><button class="q-opt" data-wrong-msg="render() không hề sửa đổi object font gốc.">Vì render() sẽ xoá mất object font sau khi gọi</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="0">
+  <p class="q-prompt"><code>font.render("Dòng 1\nDòng 2", True, (255,255,255))</code> sẽ cho kết quả gì?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-right-msg="Đúng — render() chỉ xử lý được một dòng, ký tự xuống dòng không được hiểu đúng nghĩa.">Hai dòng dính liền nhau trên một hàng</button></li>
+    <li><button class="q-opt" data-wrong-msg="render() không ném lỗi khi gặp ký tự xuống dòng.">Một lỗi exception bị ném ra ngay</button></li>
+    <li><button class="q-opt" data-wrong-msg="Không có việc tự tách dòng nào xảy ra bên trong render().">Hai dòng chữ xếp đúng, cách nhau gọn gàng</button></li>
+    <li><button class="q-opt" data-wrong-msg="render() không trả về giá trị rỗng trong trường hợp này.">Một Surface hoàn toàn trống rỗng</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="2">
+  <p class="q-prompt"><code>text_surface.get_rect(center=(400, 300))</code> dùng để làm gì?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="get_rect() không liên quan tới màu sắc hay độ trong suốt.">Đổi màu nền của chữ thành trong suốt</button></li>
+    <li><button class="q-opt" data-wrong-msg="Kích thước chữ do tham số size lúc tạo Font quyết định, không phải get_rect().">Phóng to chữ lên đúng kích thước 400x300</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — nó trả về một Rect sao cho tâm của chữ nằm đúng tại toạ độ (400, 300).">Tính vị trí để tâm của chữ nằm đúng tại (400, 300)</button></li>
+    <li><button class="q-opt" data-wrong-msg="Số dòng chữ do bạn tự tách bằng split(), không phải get_rect().">Tách chữ thành nhiều dòng tự động</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<p class="ask-your-teacher">
+  Nếu font trông "vỡ"/răng cưa, hoặc chữ bị lệch vị trí không như mong đợi — cứ hỏi thẳng giáo
+  viên (chính tôi), kèm đoạn code bạn đang chạy. Đó là cách debug nhanh nhất.
+</p>
+
+<div class="sources">
+  <strong>Nguồn tham khảo chính cho bài này:</strong>
+  <ul>
+    <li><a href="https://pygame.readthedocs.io/en/latest/4_text/text.html" target="_blank" rel="noopener">Work with text</a> — Pygame tutorial, giải thích quy trình 3 bước font → render → blit.</li>
+    <li><a href="https://www.pygame.org/docs/ref/font.html" target="_blank" rel="noopener">pygame.font — tài liệu API chính thức</a>, bao gồm chữ ký đầy đủ của <code>render()</code> và các phương thức khác của <code>Font</code>.</li>
+  </ul>
+  Xem thêm bảng tra nhanh: <a href="../reference/pygame-font-cheatsheet.html">Pygame Font &amp; Text — Cheat Sheet</a>.
+</div>
+
+<div class="nav-links">
+  <span>&larr; <a href="0001-window-and-game-loop.html">Bài 1: Window và Game Loop</a></span>
+  <span><a href="0003-grid-and-mouse-picking.html">Bài 3: Lưới ô (grid) và bắt click chuột &rarr;</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

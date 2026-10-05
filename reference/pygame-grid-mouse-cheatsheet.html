@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grid &amp; Mouse Picking — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  body { max-width: 760px; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: normal; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+</style>
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Reference</span>Grid &amp; Mouse Picking — Cheat Sheet</h1>
+
+<p>Tra nhanh công thức lưới ô + chuột. Chi tiết: <a href="../lessons/0003-grid-and-mouse-picking.html">Bài 3: Lưới ô và bắt click chuột</a>.</p>
+
+<h2>Dữ liệu lưới — tách khỏi hình vẽ</h2>
+<pre><code>grid = [[0 for _ in range(GRID_COLS)] for _ in range(GRID_ROWS)]
+# Truy cập: grid[row][col]  — HÀNG trước, CỘT sau</code></pre>
+
+<h2>Chỉ số ô &rarr; pixel (để vẽ)</h2>
+<pre><code>x = col * TILE_SIZE
+y = row * TILE_SIZE</code></pre>
+
+<h2>Pixel &rarr; chỉ số ô (để bắt click)</h2>
+<pre><code>col = x // TILE_SIZE   # // = chia lấy phần nguyên
+row = y // TILE_SIZE</code></pre>
+
+<h2>Kiểm tra biên (luôn làm trước khi đọc/ghi grid)</h2>
+<pre><code>def is_valid(row, col):
+    return 0 <= row < GRID_ROWS and 0 <= col < GRID_COLS</code></pre>
+
+<h2>Sự kiện chuột vs hàm hỏi vị trí</h2>
+<table>
+  <tr><th>API</th><th>Khi nào kích hoạt</th></tr>
+  <tr><td><code>event.type == pygame.MOUSEBUTTONDOWN</code></td><td>Đúng một lần, ngay frame chuột được bấm xuống. Toạ độ: <code>event.pos</code>.</td></tr>
+  <tr><td><code>event.type == pygame.MOUSEBUTTONUP</code></td><td>Đúng một lần, ngay frame chuột được nhả ra.</td></tr>
+  <tr><td><code>pygame.mouse.get_pos()</code></td><td>Không phải event — gọi được bất kỳ lúc nào, mọi frame, trả về vị trí chuột hiện tại.</td></tr>
+</table>
+
+<h2>Vẽ viền thay vì tô đặc</h2>
+<pre><code>pygame.draw.rect(screen, color, rect)              # tô đặc (mặc định)
+pygame.draw.rect(screen, color, rect, width=2)      # chỉ vẽ viền dày 2px</code></pre>
+
+<div class="sources">
+  Nguồn: <a href="https://www.pygame.org/docs/ref/event.html" target="_blank" rel="noopener">pygame.event</a> ·
+  <a href="https://www.pygame.org/docs/ref/mouse.html" target="_blank" rel="noopener">pygame.mouse</a> ·
+  <a href="https://www.pygame.org/docs/ref/draw.html" target="_blank" rel="noopener">pygame.draw</a>
+</div>
+
+</body>
+</html>

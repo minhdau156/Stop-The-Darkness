@@ -1,0 +1,177 @@
+/* Shared stylesheet for the Pygame teaching workspace. Tufte-ish: quiet, readable, print-friendly. */
+
+:root {
+  --ink: #1a1a1a;
+  --paper: #fcfbf8;
+  --muted: #6b6b6b;
+  --rule: #ddd8cc;
+  --accent: #8a3b2f;
+  --accent-soft: #f4e9e3;
+  --code-bg: #f1efe6;
+  --good: #2f6b3a;
+  --bad: #a8352a;
+  --max-w: 680px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e4d8;
+    --paper: #161512;
+    --muted: #9a958a;
+    --rule: #39362c;
+    --accent: #e2a07a;
+    --accent-soft: #2a241d;
+    --code-bg: #1f1d17;
+    --good: #7fc98c;
+    --bad: #e2897e;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Palatino, "Palatino Linotype", Georgia, "Iowan Old Style", serif;
+  font-size: 19px;
+  line-height: 1.55;
+  max-width: var(--max-w);
+  margin: 3rem auto 6rem;
+  padding: 0 1.25rem;
+}
+
+h1 {
+  font-size: 1.9rem;
+  line-height: 1.2;
+  margin-bottom: 0.2rem;
+}
+
+h1 .lesson-kicker {
+  display: block;
+  font-family: "Iosevka", "SF Mono", Consolas, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.6rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin-top: 2.4rem;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.3rem;
+}
+
+h3 { font-size: 1.05rem; margin-top: 1.6rem; }
+
+p { margin: 1rem 0; }
+
+a { color: var(--accent); text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+
+code, pre {
+  font-family: "Iosevka", "SF Mono", Consolas, "Courier New", monospace;
+  font-size: 0.88rem;
+}
+
+code {
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--code-bg);
+  padding: 1rem 1.1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  line-height: 1.45;
+  border: 1px solid var(--rule);
+}
+pre code { background: none; padding: 0; }
+
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 0.8rem 1.1rem;
+  margin: 1.4rem 0;
+  border-radius: 0 4px 4px 0;
+}
+.callout .label {
+  font-family: "Iosevka", "SF Mono", Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.sources {
+  font-size: 0.92rem;
+  color: var(--muted);
+  border-top: 1px solid var(--rule);
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+}
+.sources ul { padding-left: 1.2rem; }
+
+.nav-links {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.92rem;
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+}
+
+.ask-your-teacher {
+  margin-top: 2.5rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Quiz widget */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.1rem 1.2rem 1.3rem;
+  margin: 1.6rem 0;
+  background: color-mix(in srgb, var(--paper) 94%, var(--ink) 6%);
+}
+.quiz .q-prompt { font-weight: bold; margin-bottom: 0.8rem; }
+.quiz .q-options { list-style: none; padding: 0; margin: 0; }
+.quiz .q-options li { margin-bottom: 0.5rem; }
+.quiz button.q-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+}
+.quiz button.q-opt:hover { border-color: var(--accent); }
+.quiz button.q-opt.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 15%, var(--paper)); }
+.quiz button.q-opt.incorrect { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 15%, var(--paper)); }
+.quiz .q-feedback { margin-top: 0.7rem; font-size: 0.92rem; min-height: 1.2em; }
+.quiz .q-feedback.correct { color: var(--good); }
+.quiz .q-feedback.incorrect { color: var(--bad); }
+
+/* Task checklist (for "do this in your own editor" steps) */
+.task-list { padding-left: 1.3rem; }
+.task-list li { margin-bottom: 0.6rem; }
+
+img, svg.diagram { max-width: 100%; }
+
+@media print {
+  body { max-width: 100%; }
+  .quiz button.q-opt { cursor: default; }
+}

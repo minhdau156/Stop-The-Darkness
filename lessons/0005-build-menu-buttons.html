@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài 5: Menu xây dựng bằng nút bấm</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Pygame · Bài 5 trên hành trình làm game xây dựng</span>Menu xây dựng bằng nút bấm</h1>
+
+<p>
+Hiện tại game của bạn chỉ xây được một loại công trình. Bài này thêm <strong>menu chọn loại công
+trình</strong> — việc này cần một khái niệm UI mới: <strong>nút bấm (button)</strong>. Pygame
+không có sẵn "widget nút bấm" nào — giống hệt tinh thần Bài 1 và Bài 2, bạn sẽ tự xây nó từ những
+mảnh ghép đã biết: <code>pygame.draw.rect</code> + chữ (Bài 2) + bắt click (Bài 3).
+</p>
+
+<h2>Mô hình tư duy: nút bấm = một Rect bạn tự kiểm tra click có trúng không</h2>
+
+<p>
+Một "nút bấm" thực chất chỉ là: <strong>một vùng hình chữ nhật cố định trên màn hình</strong>, vẽ
+có nhãn chữ, và khi người chơi click, bạn tự kiểm tra xem toạ độ click có <strong>nằm bên
+trong</strong> vùng đó không. Pygame cung cấp sẵn một class tiện lợi cho việc này:
+<code>pygame.Rect</code>.
+</p>
+
+<h2>Bước 1 — Làm quen với <code>pygame.Rect</code></h2>
+
+<p>
+Ở các bài trước, bạn truyền tuple <code>(x, y, w, h)</code> thẳng vào
+<code>pygame.draw.rect</code>. Giờ, với các vùng cố định (nút bấm không di chuyển, không đổi kích
+thước), tạo hẳn một object <code>Rect</code> sẽ tiện hơn nhiều, vì nó có sẵn các hàm kiểm tra hữu
+ích:
+</p>
+
+<pre><code>button_rect = pygame.Rect(20, 500, 140, 40)   # x, y, width, height — giống hệt tuple cũ
+
+# Kiểm tra một điểm có nằm trong Rect không:
+button_rect.collidepoint((50, 510))   # True — điểm (50,510) nằm trong vùng trên
+button_rect.collidepoint((9999, 1))   # False
+</code></pre>
+
+<p>
+<code>collidepoint((x, y))</code> trả về <code>True</code>/<code>False</code> — đúng thứ bạn cần
+để biết "chuột vừa click có trúng nút này không?". Điều hay nhất: <code>pygame.draw.rect</code>
+nhận cả tuple <em>lẫn</em> <code>Rect</code>, nên bạn không mất gì khi chuyển sang dùng
+<code>Rect</code> cho các vùng cố định.
+</p>
+
+<h2>Bước 2 — Định nghĩa danh sách loại công trình</h2>
+
+<p>
+Thay vì chỉ có "xây/không xây" (0/1) như Bài 3–4, giờ mỗi ô lưu <strong>loại công trình</strong> —
+dùng số nguyên làm mã (0 = trống, 1 = loại A, 2 = loại B...), và một danh sách riêng mô tả từng
+loại:
+</p>
+
+<pre><code># Mỗi building type: tên hiển thị, chi phí, màu khi vẽ lên lưới, và Rect của nút bấm tương ứng
+BUILDING_TYPES = [
+    {"name": "Trạm Gỗ",  "cost": 10, "color": (160, 120, 60),
+     "button": pygame.Rect(20, 500, 140, 40)},
+    {"name": "Tháp Canh", "cost": 25, "color": (120, 120, 160),
+     "button": pygame.Rect(170, 500, 140, 40)},
+]
+
+selected_type = 0   # chỉ số trong BUILDING_TYPES đang được chọn để xây
+</code></pre>
+
+<div class="callout">
+  <span class="label">Vì sao gộp dữ liệu loại công trình thành một list-of-dict</span>
+  Đây là cách tổ chức dữ liệu rất hay dùng: mỗi "loại" là một <code>dict</code> gom mọi thuộc tính
+  liên quan (tên, giá, màu, vị trí nút) lại một chỗ, và danh sách các dict đó chính là "bảng dữ
+  liệu" cho mọi loại công trình trong game. Muốn thêm loại công trình thứ 3? Chỉ cần thêm một
+  dict nữa vào <code>BUILDING_TYPES</code> — không phải sửa code logic ở đâu khác.
+</div>
+
+<h2>Bước 3 — Vẽ menu</h2>
+
+<pre><code>def draw_menu(screen, font):
+    for i, btype in enumerate(BUILDING_TYPES):
+        pygame.draw.rect(screen, btype["color"], btype["button"])
+        border_color = (255, 255, 255) if i == selected_type else (80, 80, 80)
+        pygame.draw.rect(screen, border_color, btype["button"], width=3)
+
+        label = font.render(f"{btype['name']} ({btype['cost']})", True, (255, 255, 255))
+        label_rect = label.get_rect(center=btype["button"].center)
+        screen.blit(label, label_rect)
+</code></pre>
+
+<p>
+Để ý <code>label_rect = label.get_rect(center=btype["button"].center)</code> — đây chính là kỹ
+thuật canh giữa chữ học ở Bài 2, áp dụng để canh chữ nằm giữa nút bấm. <code>btype["button"].center</code>
+là thuộc tính có sẵn của <code>Rect</code>, tự tính tâm hình chữ nhật đó cho bạn.
+</p>
+
+<h2>Bước 4 — Bắt click: menu hay lưới?</h2>
+
+<p>
+Giờ một lượt click có thể nhắm vào menu (chọn loại công trình) <strong>hoặc</strong> vào lưới
+(xây tại ô đó). Luôn kiểm tra menu trước:
+</p>
+
+<pre><code>elif event.type == pygame.MOUSEBUTTONDOWN:
+    clicked_menu = False
+    for i, btype in enumerate(BUILDING_TYPES):
+        if btype["button"].collidepoint(event.pos):
+            selected_type = i
+            clicked_menu = True
+            break
+
+    if not clicked_menu:
+        row, col = pixel_to_tile(event.pos)
+        if is_valid(row, col):
+            btype = BUILDING_TYPES[selected_type]
+            if grid[row][col] != 0:
+                message, message_timer = "Ô này đã được xây rồi", 90
+            elif resource < btype["cost"]:
+                message, message_timer = "Không đủ tài nguyên", 90
+            else:
+                grid[row][col] = selected_type + 1   # +1 vì 0 nghĩa là "trống"
+                resource -= btype["cost"]
+</code></pre>
+
+<p>
+Biến cờ <code>clicked_menu</code> là mấu chốt: nếu click trúng menu, bạn <strong>không</strong>
+được coi đó là một lượt xây trên lưới nữa — nếu không, chọn loại công trình sẽ vô tình xây luôn
+vào bất kỳ ô nào đang nằm "phía sau" nút bấm trên màn hình.
+</p>
+
+<h2>Bước 5 — Vẽ lưới theo đúng loại công trình</h2>
+
+<pre><code>def draw_grid(screen, grid):
+    for row in range(GRID_ROWS):
+        for col in range(GRID_COLS):
+            rect = (col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+            cell = grid[row][col]
+
+            if cell == 0:
+                color = (50, 70, 50)
+            else:
+                color = BUILDING_TYPES[cell - 1]["color"]   # cell-1 vì đã +1 ở Bước 4
+
+            pygame.draw.rect(screen, color, rect)
+            pygame.draw.rect(screen, (20, 20, 20), rect, width=2)
+</code></pre>
+
+<p>
+Đây là lý do Bước 4 lưu <code>selected_type + 1</code> thay vì <code>selected_type</code> trực
+tiếp: số <code>0</code> trong <code>grid</code> cần giữ nguyên ý nghĩa "ô trống" (từ Bài 3), nên
+loại công trình thứ nhất (chỉ số 0 trong <code>BUILDING_TYPES</code>) phải được lưu thành số
+<code>1</code> trong <code>grid</code>, loại thứ hai thành <code>2</code>, v.v. Khi vẽ, chuyển
+ngược lại bằng <code>cell - 1</code> để tra đúng vào <code>BUILDING_TYPES</code>.
+</p>
+
+<h2>Những lỗi thường gặp</h2>
+
+<div class="callout">
+  <span class="label">Pitfall #1 — không kiểm tra menu trước</span>
+  Nếu bạn kiểm tra click trên lưới trước, rồi mới kiểm tra menu, và vùng menu vô tình đè lên vùng
+  lưới (ví dụ menu đặt ở <code>y=500</code> nhưng lưới cao tới <code>y=600</code>), bạn sẽ vừa xây
+  một ô <strong>vừa</strong> đổi loại công trình được chọn trong cùng một click — luôn kiểm tra
+  menu trước, dùng cờ như Bước 4.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #2 — lệch chỉ số +1/-1</span>
+  Quên trừ <code>1</code> khi tra cứu <code>BUILDING_TYPES[cell - 1]</code> (hoặc quên cộng
+  <code>1</code> lúc lưu vào <code>grid</code>) là lỗi rất dễ xảy ra. Nếu màu/tên công trình hiện
+  sai lệch "đi một nấc" so với loại bạn chọn, đây gần như chắc chắn là nguyên nhân.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #3 — cửa sổ không đủ chỗ cho menu</span>
+  Nếu cửa sổ chỉ cao vừa đủ lưới (như Bài 3:
+  <code>GRID_ROWS * TILE_SIZE</code>), menu ở <code>y=500</code> sẽ bị cắt mất hoặc đè lên lưới.
+  Nhớ tăng chiều cao cửa sổ khi tạo <code>set_mode</code> để chừa chỗ riêng cho menu, ví dụ
+  <code>(GRID_COLS * TILE_SIZE, GRID_ROWS * TILE_SIZE + 60)</code>.
+</div>
+
+<h2>Thử tự tay làm</h2>
+
+<ol class="task-list">
+  <li>Thêm <code>BUILDING_TYPES</code> với ít nhất 2 loại công trình, vẽ menu, và cho phép chọn loại bằng click (viền trắng quanh nút đang chọn).</li>
+  <li>Xác nhận xây đúng loại đã chọn, đúng màu, đúng chi phí bị trừ tương ứng từng loại.</li>
+  <li>Tăng chiều cao cửa sổ để menu không đè lên lưới (Pitfall #3). Dùng
+  <code>GRID_ROWS * TILE_SIZE + 60</code> hoặc tương tự.</li>
+  <li><strong>Nâng cao:</strong> thêm một dòng chữ dưới menu hiển thị "Đang chọn: {tên loại}" dùng kỹ thuật Bài 2, cập nhật theo <code>selected_type</code>.</li>
+</ol>
+
+<h2>Kiểm tra lại hiểu biết</h2>
+
+<div class="quiz" data-correct="1">
+  <p class="q-prompt"><code>button_rect.collidepoint((x, y))</code> dùng để làm gì?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="collidepoint không vẽ gì cả, nó chỉ kiểm tra toạ độ.">Vẽ một hình chữ nhật tại toạ độ (x, y)</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — nó trả về True nếu điểm (x, y) nằm bên trong vùng Rect đó.">Kiểm tra điểm (x, y) có nằm trong Rect hay không</button></li>
+    <li><button class="q-opt" data-wrong-msg="Vị trí Rect đặt thủ công lúc tạo Rect, collidepoint không di chuyển nó.">Di chuyển Rect tới vị trí (x, y)</button></li>
+    <li><button class="q-opt" data-wrong-msg="Kích thước Rect đặt lúc tạo, không liên quan tới collidepoint.">Đổi kích thước Rect theo (x, y)</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="0">
+  <p class="q-prompt">Vì sao phải kiểm tra click trúng menu TRƯỚC khi kiểm tra click trúng lưới?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-right-msg="Chính xác — nếu không, một click trúng menu có thể bị hiểu nhầm thành một lượt xây trên lưới.">Để tránh một click vừa chọn loại công trình vừa xây nhầm lên lưới</button></li>
+    <li><button class="q-opt" data-wrong-msg="Pygame không bắt buộc thứ tự kiểm tra sự kiện theo cách đó.">Vì Pygame xử lý sự kiện menu trước theo mặc định</button></li>
+    <li><button class="q-opt" data-wrong-msg="Tốc độ khung hình không phụ thuộc vào thứ tự các điều kiện if.">Để tăng tốc độ khung hình</button></li>
+    <li><button class="q-opt" data-wrong-msg="Số lượng loại công trình không giới hạn bởi thứ tự kiểm tra này.">Vì menu chỉ cho phép tối đa 2 loại công trình</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<p class="ask-your-teacher">
+  Nếu click chọn sai nút, hoặc xây nhầm loại công trình — kiểm tra kỹ phần +1/-1 ở Bước 4–5 trước,
+  đó là lỗi phổ biến nhất; nếu vẫn không ra, hỏi mình kèm code bạn đang có.
+</p>
+
+<div class="sources">
+  <strong>Nguồn tham khảo chính cho bài này:</strong>
+  <ul>
+    <li><a href="https://www.pygame.org/docs/ref/rect.html" target="_blank" rel="noopener">pygame.Rect — tài liệu API chính thức</a>, đặc biệt <code>collidepoint()</code> và thuộc tính <code>center</code>.</li>
+  </ul>
+  Xem thêm: <a href="../reference/game-state-patterns-cheatsheet.html">Game State Patterns — Cheat Sheet</a>.
+</div>
+
+<div class="nav-links">
+  <span>&larr; <a href="0004-resource-and-hud.html">Bài 4: Tài nguyên (resource) + HUD</a></span>
+  <span><a href="0006-unlock-rule-adjacency.html">Bài 6: Luật mở khoá theo ô lân cận &rarr;</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

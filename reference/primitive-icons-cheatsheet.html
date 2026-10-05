@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Primitive Icons — Cheat Sheet</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  body { max-width: 760px; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: normal; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+</style>
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Reference</span>Primitive Icons — Cheat Sheet</h1>
+
+<p>Tra nhanh cách ghép hình khối thành icon. Chi tiết: <a href="../lessons/0008-drawing-icons-with-primitives.html">Bài 8: Vẽ icon Cây &amp; Đá</a>.</p>
+
+<h2>Nguyên tắc chung</h2>
+<ul>
+  <li>Icon = nhiều lệnh <code>pygame.draw.*</code> gọi liên tiếp, chồng lớp theo thứ tự gọi.</li>
+  <li>Vẽ phần <strong>bị che</strong> trước, phần <strong>che lên trên</strong> sau.</li>
+  <li>Chọn một quy ước gốc toạ độ nhất quán cho mỗi hàm (khuyên dùng: <strong>đáy</strong> — vật "đứng" trên nền ô).</li>
+</ul>
+
+<h2><code>pygame.draw.polygon(surface, color, points, width=0)</code></h2>
+<table>
+  <tr><th>Tham số</th><th>Ý nghĩa</th></tr>
+  <tr><td><code>points</code></td><td>Danh sách tuple <code>(x, y)</code> — các đỉnh, nối theo đúng thứ tự, tự động nối điểm cuối về điểm đầu.</td></tr>
+  <tr><td><code>width</code></td><td><code>0</code> (mặc định) = tô đặc; <code>&gt;0</code> = chỉ vẽ viền (có thể lan nhẹ ra ngoài biên gốc).</td></tr>
+</table>
+
+<h2>Khung mẫu: icon "đứng trên nền", gốc tại đáy</h2>
+<pre><code>def draw_icon(screen, x, y, size):
+    # (x, y) = điểm đáy — chân vật thể chạm "đất"
+    # 1. Vẽ phần dưới/bị che trước
+    # 2. Vẽ phần trên/che lên sau
+    ...</code></pre>
+
+<h2>Gắn icon vào ô lưới (nối với Bài 3)</h2>
+<pre><code>center_x = col * TILE_SIZE + TILE_SIZE // 2
+bottom_y = row * TILE_SIZE + TILE_SIZE - 8   # chừa lề dưới
+draw_icon(screen, center_x, bottom_y, size=TILE_SIZE - 20)   # size nhỏ hơn TILE_SIZE để chừa viền</code></pre>
+
+<h2>Lỗi thường gặp</h2>
+<table>
+  <tr><th>Triệu chứng</th><th>Nguyên nhân</th></tr>
+  <tr><td>Icon biến mất, chỉ còn ô màu phẳng</td><td>Vẽ nền ô SAU icon — nền đè mất icon.</td></tr>
+  <tr><td>Icon lệch nửa ô lên trên</td><td>Truyền toạ độ tâm ô vào hàm đang mong đợi toạ độ đáy.</td></tr>
+  <tr><td>Icon tràn ra ngoài viền ô</td><td><code>size</code> quá gần hoặc bằng <code>TILE_SIZE</code> — luôn trừ bớt một khoảng lề.</td></tr>
+  <tr><td>Đa giác méo kiểu "con bướm"</td><td>Các điểm trong <code>points</code> không theo đúng một thứ tự đi quanh hình.</td></tr>
+</table>
+
+<div class="sources">
+  Nguồn: <a href="https://www.pygame.org/docs/ref/draw.html" target="_blank" rel="noopener">pygame.draw — official docs</a>
+</div>
+
+</body>
+</html>

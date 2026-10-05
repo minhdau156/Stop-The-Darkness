@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bài 4: Tài nguyên (resource) + HUD</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1><span class="lesson-kicker">Pygame · Bài 4 trên hành trình làm game xây dựng</span>Tài nguyên (resource) + HUD</h1>
+
+<p>
+Bạn đã có lưới ô bấm được (Bài 3) và biết vẽ chữ (Bài 2). Bài này ghép hai thứ đó lại thành phần
+cốt lõi thật sự của một game xây dựng: <strong>xây tốn tài nguyên, tài nguyên tăng dần theo thời
+gian, và HUD hiển thị tất cả những con số đó cho người chơi thấy</strong>. Đây chính là HUD "thật"
+đầu tiên của bạn — không còn là ví dụ minh hoạ nữa.
+</p>
+
+<h2>Mô hình tư duy: HUD chỉ là "in ra màn hình" dữ liệu của bạn</h2>
+
+<div class="callout">
+  <span class="label">Ý chính của cả bài</span>
+  Một khi bạn đã có dữ liệu game (resource, grid...) tách biệt khỏi hình vẽ — như Bài 3 đã dạy —
+  thì HUD không còn là chuyện gì bí ẩn nữa. HUD chỉ đơn giản là: <strong>mỗi frame, đọc vài biến
+  Python, và <code>render()</code> + <code>blit()</code> chúng lên góc màn hình</strong>. Không có
+  phép màu nào khác. Nếu bạn thấy HUD "khó", thường là vì state (dữ liệu) chưa được tổ chức rõ
+  ràng — chứ không phải vì vẽ chữ khó.
+</div>
+
+<h2>Bước 1 — Thêm biến tài nguyên vào state</h2>
+
+<pre><code>resource = 20            # tài nguyên khởi điểm
+BUILD_COST = 10           # chi phí xây một ô
+INCOME_PER_TICK = 1       # mỗi "tick" thu nhập được bao nhiêu
+TICK_FRAMES = 60          # 60 frame = khoảng 1 giây, ở 60 FPS
+
+frame_counter = 0
+</code></pre>
+
+<p>
+Chú ý: <code>resource</code>, <code>frame_counter</code> là các biến Python <strong>thuần</strong>,
+y hệt tinh thần "tách dữ liệu khỏi hình vẽ" ở Bài 3. Chúng không "thuộc về" Pygame — Pygame chỉ
+được gọi tới khi bạn cần <em>hiển thị</em> chúng.
+</p>
+
+<h2>Bước 2 — Tăng tài nguyên theo thời gian ("thu nhập thụ động")</h2>
+
+<p>
+Bạn đã biết <code>clock.tick(60)</code> giữ nhịp 60 frame/giây. Vậy "cứ mỗi giây cộng thêm tài
+nguyên" tương đương "cứ mỗi 60 frame thì cộng thêm tài nguyên" — một cách đếm đơn giản, không cần
+tính thời gian thực:
+</p>
+
+<pre><code># Đặt ở phần Update của loop, mỗi frame đều chạy
+frame_counter += 1
+if frame_counter >= TICK_FRAMES:
+    frame_counter = 0
+    resource += INCOME_PER_TICK
+</code></pre>
+
+<div class="callout">
+  <span class="label">Vì sao đếm frame thay vì đo thời gian thật</span>
+  Cách chuẩn trong game thật sự là dùng <strong>delta time</strong> (thời gian thực sự trôi qua
+  giữa 2 frame, lấy từ <code>clock.tick(60)</code> — hàm này trả về số mili-giây đã trôi qua) để
+  không bị lệ thuộc vào FPS. Nhưng với deadline 3 tuần và đây là bài đầu tiên học resource, đếm
+  frame đơn giản hơn nhiều và đủ chính xác — vì bạn đã cố định FPS ở 60 bằng
+  <code>clock.tick(60)</code>. Đây là một sự đơn giản hoá có chủ đích, không phải thiếu sót; nếu
+  sau này cần chính xác hơn (game chạy trên máy FPS không ổn định), delta time là từ khoá để tìm
+  hiểu tiếp.
+</div>
+
+<h2>Bước 3 — Xây tốn tài nguyên, có kiểm tra đủ/thiếu</h2>
+
+<p>
+Nối lại đoạn xử lý click ở Bài 3 — giờ không chỉ "bật/tắt ô" nữa, mà phải kiểm tra tài nguyên
+trước khi cho xây:
+</p>
+
+<pre><code>elif event.type == pygame.MOUSEBUTTONDOWN:
+    row, col = pixel_to_tile(event.pos)
+    if is_valid(row, col):
+        if grid[row][col] != 0:
+            message = "Ô này đã được xây rồi"
+            message_timer = 90   # hiện trong 90 frame (~1.5 giây)
+        elif resource < BUILD_COST:
+            message = "Không đủ tài nguyên"
+            message_timer = 90
+        else:
+            grid[row][col] = 1
+            resource -= BUILD_COST
+</code></pre>
+
+<p>
+Để ý cấu trúc <code>if / elif / else</code>: luôn kiểm tra <strong>lý do không xây được</strong>
+trước, rồi mới xây ở nhánh <code>else</code> cuối cùng. Đây là thứ tự quan trọng — nếu bạn trừ
+<code>resource</code> trước rồi mới kiểm tra, bạn có thể vô tình để <code>resource</code> xuống
+âm.
+</p>
+
+<h2>Bước 4 — Thông báo tạm thời (temporary message) — mảnh HUD rất hay dùng</h2>
+
+<p>
+"Không đủ tài nguyên" ở trên không nên hiện mãi mãi trên màn hình — chỉ nên loé lên một lúc rồi
+tắt. Đây là một pattern UI cực kỳ phổ biến (toast/notification), và cách làm trong Pygame rất đơn
+giản: một biến đếm ngược, giảm dần mỗi frame, chữ chỉ được vẽ khi biến đó còn lớn hơn 0.
+</p>
+
+<pre><code>message = ""
+message_timer = 0   # còn bao nhiêu frame nữa thì tắt thông báo
+
+# Trong phần Update của loop, mỗi frame:
+if message_timer > 0:
+    message_timer -= 1
+</code></pre>
+
+<p>Và trong phần Draw, chỉ vẽ khi còn thời gian:</p>
+
+<pre><code>if message_timer > 0:
+    msg_surface = font.render(message, True, (255, 200, 80))
+    screen.blit(msg_surface, (20, 60))
+</code></pre>
+
+<h2>Bước 5 — HUD hoàn chỉnh</h2>
+
+<pre><code># Trong phần Draw, sau khi vẽ grid:
+resource_surface = font.render(f"Tài nguyên: {resource}", True, (255, 255, 255))
+screen.blit(resource_surface, (20, 20))
+
+built_count = sum(row.count(1) for row in grid)
+count_surface = font.render(f"Đã xây: {built_count}", True, (200, 200, 200))
+screen.blit(count_surface, (20, 90))
+
+if message_timer > 0:
+    msg_surface = font.render(message, True, (255, 200, 80))
+    screen.blit(msg_surface, (20, 60))
+</code></pre>
+
+<p>
+<code>sum(row.count(1) for row in grid)</code> là một mẹo Python thuần: với mỗi <code>row</code>
+(một list con), <code>.count(1)</code> đếm số phần tử bằng <code>1</code> trong đó;
+<code>sum(...)</code> cộng tất cả lại. Không có gì liên quan tới Pygame ở dòng này — một lần nữa
+minh hoạ việc tách dữ liệu khỏi hình vẽ: bạn tính toán bằng Python thuần, Pygame chỉ lo hiển thị
+kết quả.
+</p>
+
+<h2>Những lỗi thường gặp</h2>
+
+<div class="callout">
+  <span class="label">Pitfall #1 — quên giảm <code>message_timer</code></span>
+  Nếu bạn chỉ gán <code>message_timer = 90</code> lúc xảy ra lỗi nhưng quên đặt dòng
+  <code>message_timer -= 1</code> trong Update, thông báo sẽ hiện <strong>mãi mãi</strong>, không
+  bao giờ tắt — vì không có gì làm nó giảm xuống 0 cả.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #2 — trừ tài nguyên trước, kiểm tra sau</span>
+  Viết <code>resource -= BUILD_COST</code> rồi mới <code>if resource &lt; 0: ...</code> để "sửa
+  lại" là ngược quy trình — đúng ra phải <strong>kiểm tra trước, trừ sau</strong> (như Bước 3),
+  nếu không bạn sẽ có một khung hình ngắn ngủi mà <code>resource</code> âm, có thể gây bug hiển
+  thị hoặc logic sai ở chỗ khác đọc giá trị đó.
+</div>
+
+<div class="callout">
+  <span class="label">Pitfall #3 — tăng thu nhập mỗi frame thay vì mỗi tick</span>
+  Quên bộ đếm <code>frame_counter</code> và viết thẳng <code>resource += INCOME_PER_TICK</code>
+  ngay trong loop (chạy mỗi frame, tức 60 lần/giây) sẽ khiến tài nguyên tăng vọt cực nhanh, không
+  giống chủ đích "mỗi giây cộng một lần".
+</div>
+
+<h2>Thử tự tay làm</h2>
+
+<ol class="task-list">
+  <li>Ghép toàn bộ 5 bước ở trên vào code Bài 3. Chạy thử: xác nhận tài nguyên tự tăng theo thời gian, xây tốn đúng <code>BUILD_COST</code>, và không xây được khi không đủ tài nguyên.</li>
+  <li>Thử bấm liên tục vào một ô đã xây rồi — xác nhận thông báo "Ô này đã được xây rồi" hiện lên khoảng 1.5 giây rồi tự tắt, không bị kẹt mãi.</li>
+  <li>Đổi <code>BUILD_COST</code> và <code>INCOME_PER_TICK</code> thành các giá trị khác nhau, quan sát nhịp độ chơi thay đổi ra sao — đây chính là việc "cân bằng game" (game balancing) ở quy mô nhỏ nhất.</li>
+  <li><strong>Nâng cao:</strong> thêm một thông báo thành công thoáng qua khi xây được ô (ví dụ "+1 công trình!"), dùng đúng pattern <code>message</code> + <code>message_timer</code> y hệt ở trên.</li>
+</ol>
+
+<h2>Kiểm tra lại hiểu biết</h2>
+
+<div class="quiz" data-correct="2">
+  <p class="q-prompt">Vì sao cần kiểm tra <code>resource &lt; BUILD_COST</code> TRƯỚC khi trừ, thay vì trừ xong rồi kiểm tra nếu âm thì hoàn lại?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-wrong-msg="Python không giới hạn số âm theo cách đó — đây không phải vấn đề cú pháp.">Vì Python không cho phép số âm</button></li>
+    <li><button class="q-opt" data-wrong-msg="Tốc độ xử lý của hai cách gần như không khác biệt ở quy mô này.">Để chương trình chạy nhanh hơn</button></li>
+    <li><button class="q-opt" data-right-msg="Chính xác — kiểm tra trước tránh hẳn việc resource từng đi qua giá trị âm dù chỉ một khung hình.">Để tránh resource đi qua giá trị âm, dù chỉ tạm thời</button></li>
+    <li><button class="q-opt" data-wrong-msg="HUD vẫn hiển thị đúng bất kể thứ tự kiểm tra, miễn giá trị cuối cùng đúng.">Vì HUD chỉ hiển thị đúng khi kiểm tra trước</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<div class="quiz" data-correct="0">
+  <p class="q-prompt">Pattern <code>message</code> + <code>message_timer</code> (giảm dần mỗi frame, chỉ vẽ khi &gt; 0) dùng để làm gì?</p>
+  <ul class="q-options">
+    <li><button class="q-opt" data-right-msg="Chính xác — đây là cách làm một thông báo tạm thời tự tắt sau một khoảng thời gian, không cần hẹn giờ phức tạp.">Hiện một thông báo trong một khoảng thời gian rồi tự tắt</button></li>
+    <li><button class="q-opt" data-wrong-msg="Tốc độ khung hình do clock.tick() quyết định, không liên quan tới pattern này.">Giới hạn tốc độ khung hình của game</button></li>
+    <li><button class="q-opt" data-wrong-msg="Việc kiểm tra biên của lưới dùng hàm is_valid(), không liên quan ở đây.">Kiểm tra chuột có click ra ngoài lưới không</button></li>
+    <li><button class="q-opt" data-wrong-msg="Font chữ được tạo một lần ngoài loop, không liên quan tới pattern thông báo tạm thời.">Tạo lại font chữ mỗi khi cần hiện chữ mới</button></li>
+  </ul>
+  <p class="q-feedback"></p>
+</div>
+
+<p class="ask-your-teacher">
+  Nếu tài nguyên tăng/giảm sai nhịp độ bạn mong muốn, hoặc thông báo không chịu tắt — cứ dán đoạn
+  code state + update của bạn lên hỏi mình.
+</p>
+
+<div class="sources">
+  <strong>Nguồn tham khảo chính cho bài này:</strong>
+  <ul>
+    <li><a href="https://www.pygame.org/docs/ref/time.html" target="_blank" rel="noopener">pygame.time — tài liệu API chính thức</a> (phần <code>Clock.tick()</code>, để hiểu rõ hơn vì sao delta time là bước nâng cấp tự nhiên sau pattern đếm frame ở bài này).</li>
+  </ul>
+  Xem thêm: <a href="../reference/game-state-patterns-cheatsheet.html">Game State Patterns — Cheat Sheet</a> (tổng hợp resource, message, button, state machine dùng xuyên suốt Bài 4–7).
+</div>
+
+<div class="nav-links">
+  <span>&larr; <a href="0003-grid-and-mouse-picking.html">Bài 3: Lưới ô và bắt click chuột</a></span>
+  <span><a href="0005-build-menu-buttons.html">Bài 5: Menu xây dựng bằng nút bấm &rarr;</a></span>
+</div>
+
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
