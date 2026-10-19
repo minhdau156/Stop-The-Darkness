@@ -22,12 +22,13 @@ rather than being a side quest.
 ## Constraints
 - Total beginner in Pygame (knows Python itself).
 - **Hard deadline: 3 weeks** (~2026-10-24). Pacing must fit this — favor "working and simple" over "complete and faithful to the inspiration game."
-- User explicitly chose the **simplified scope** over a close clone when asked (2026-10-03): one resource type, a handful of buildings, one unlock rule, one win condition. This is a deliberate trade-off, not a corner being cut by default — don't creep back toward the fuller scope without the user asking.
 - Sessions happen incrementally; keep each lesson small enough to finish in one sitting.
-- Build an **original** game inspired by the genre/mechanic (grid-based building + resource management + unlock-by-adjacency), with its own theme, names, and art — not a clone of the reference game's content or branding.
+- **2026-10-17 scope change**: user asked to clone the actual reference game (flori9's "Stop the Darkness" on itch.io) instead of building a loosely-inspired original, plus add one new mechanic not in the source. This **supersedes** the 2026-10-03 simplified-scope and "original, not a clone" decisions below. Accepted risk: closer scope with ~1 week left. `main.py` now implements: 4 resources (wood/stone/magic/research), adjacency-gated tile upgrades, a Stone Circle that halts then reverses spreading darkness, 2 win conditions (research threshold, darkness cleared), a lose condition (darkness overruns the map), and a new Darkness Wisp enemy (roams toward a building, destroys it on arrival, player can click to kill it) as the "little different" addition. Simplifications vs. the original: no flood-fill water bodies (Mainport just needs 3 Ports anywhere), no Extended Mode, ~3 building tiers instead of the original's ~15.
+- ~~User explicitly chose the simplified scope over a close clone when asked (2026-10-03): one resource type, a handful of buildings, one unlock rule, one win condition.~~ Superseded above.
+- ~~Build an original game ... not a clone of the reference game's content or branding.~~ Superseded above.
 
 ## Out of scope
-- Multiple resource types, a full adjacency web, multiple win conditions, an "extended mode" — these belong to the fuller version the user explicitly decided *not* to build given the deadline.
+- The original's full building tree (~15 tiers), true flood-fill water bodies for Mainport, and Extended Mode (3 more win conditions) — explicitly cut for the 1-week deadline even under the closer-clone scope.
 - Advanced rendering (OpenGL, shaders, pygame-ce specific extensions) — not needed for a school project.
 - Networking/multiplayer.
 - Sprite-sheet/tilemap asset pipelines — plain shapes/colors are enough for tiles and buildings unless the user later asks for art assets.
