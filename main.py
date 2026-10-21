@@ -75,10 +75,10 @@ VALUABLE_TARGETS = {
 
 # Clicking one of these upgrades it in place (no menu needed).
 UPGRADES = {
-    FOREST: {"result": LUMBER_CAMP, "cost": {},
+    FOREST: {"result": LUMBER_CAMP, "cost": {}, "reward": {"wood": 5},
               "requires": lambda r, c: True,
               "label": "Claim Forest"},
-    STONE: {"result": QUARRY, "cost": {},
+    STONE: {"result": QUARRY, "cost": {}, "reward": {"stone": 5},
              "requires": lambda r, c: True,
              "label": "Claim Stone"},
     VILLAGE: {"result": TOWN, "cost": {"wood": 15, "stone": 10},
@@ -119,6 +119,13 @@ PRODUCTION = {
 }
 BOOST_RESOURCE = {LUMBER_CAMP: "wood", QUARRY: "stone", MAGIC_GROVE: "magic"}
 BASE_YIELD = {LUMBER_CAMP: 1, QUARRY: 1, MAGIC_GROVE: 2}
+
+# Clicking one of these tiles directly collects a resource (clicker-style),
+# on top of the slow per-second passive production above.
+COLLECT_ON_CLICK = {
+    LUMBER_CAMP: ("wood", 2),
+    QUARRY: ("stone", 2),
+}
 
 RESOURCE_ORDER = ["wood", "stone", "magic", "research"]
 RESOURCE_LABELS = {"wood": "Wood", "stone": "Stone", "magic": "Magic", "research": "Research"}
@@ -283,7 +290,17 @@ def attempt_upgrade(row, col):
     else:
         spend(rule["cost"])
         grid[row][col] = rule["result"]
-        set_message(f"{rule['label']} done!", 60)
+        reward = rule.get("reward", {})
+        for res, amount in reward.items():
+            resources[res] += amount
+        reward_str = " ".join(f"+{amt} {RESOURCE_LABELS[res]}" for res, amt in reward.items())
+        set_message(f"{rule['label']}!" + (f" ({reward_str})" if reward_str else ""), 60)
+
+
+def collect_resource(row, col):
+    res, amount = COLLECT_ON_CLICK[grid[row][col]]
+    resources[res] += amount
+    set_message(f"+{amount} {RESOURCE_LABELS[res]}", 30)
 
 
 # ---------- Darkness ----------
@@ -546,7 +563,7 @@ def draw_message_box():
     pygame.draw.rect(screen, MSG_BOX_COLOR, rect)
     pygame.draw.rect(screen, PANEL_BORDER, rect, width=2)
 
-    text = message if message_timer > 0 else "Click Forest/Stone to claim it. Click Field to build."
+    text = message if message_timer > 0 else "Click Forest/Stone to claim it, then click it again to collect. Click Field to build."
     label = font.render(text, True, TEXT_DARK)
     screen.blit(label, (14, GRID_H + 14))
 
@@ -600,8 +617,11 @@ while running:
                 if not clicked_menu:
                     row, col = pixel_to_tile(event.pos)
                     if is_valid(row, col):
-                        if grid[row][col] == FIELD:
+                        tile = grid[row][col]
+                        if tile == FIELD:
                             attempt_build(row, col)
+                        elif tile in COLLECT_ON_CLICK:
+                            collect_resource(row, col)
                         else:
                             attempt_upgrade(row, col)
 
