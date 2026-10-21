@@ -188,7 +188,7 @@ def draw_tile(s, k, l, v, ox, oy, u, part='all'):
 
 # ---------------------------------------------------------------- trạng thái
 class Tile:
-    def __init__(s, k, x, y, v): s.k, s.l, s.x, s.y, s.v, s.built = k, 0, x, y, v, False
+    def __init__(s, k, x, y, v): s.k, s.l, s.x, s.y, s.v, s.built, s.hv = k, 0, x, y, v, False, False
 
 
 class Game:
@@ -286,7 +286,8 @@ class Game:
 
     def click(s, t):
         if s.state != 'play' or s.over or s.paused or s.dark(t.x, t.y): return
-        if t.k in HARVEST:
+        if t.k in HARVEST and not t.hv:   # mỗi ô chỉ thu hoạch được một lần
+            t.hv = True
             ri, amt = HARVEST[t.k]; s.res[ri] += amt; sfx('up')
         u = s.up(t)
         if not u or u[2]: return
@@ -303,7 +304,7 @@ class Game:
     def say(s, text, btns=(), t=0): s.msg, s.msg_btns, s.msg_t = text, list(btns), t
     def start(s):
         s.state, s.paused = 'play', False
-        s.say('Bóng tối sẽ lan từng ô từ góc dưới bên trái rồi xoáy dần vào trong. Bạn vẫn có thể ngăn nó! Hãy bắt đầu bằng việc sản xuất gỗ. Nhấn vào Rừng để nâng cấp, và nhấn lại vào Rừng/Đá đã xây để thu hoạch ngay Gỗ/Đá.')
+        s.say('Bóng tối sẽ lan từng ô từ góc dưới bên trái rồi xoáy dần vào trong. Bạn vẫn có thể ngăn nó! Hãy bắt đầu bằng việc sản xuất gỗ. Nhấn vào Rừng để nâng cấp. Mỗi ô Rừng/Đá/Nấm chỉ thu hoạch ngay được một lần ở lần nhấn đầu tiên.')
     def to_menu(s): s.state = 'menu'; s.msg = None; s.jopen = False; s.gen()
     def lit(s): return sum(not s.dark(x, y) for y in range(H) for x in range(W))
     def win(s):
